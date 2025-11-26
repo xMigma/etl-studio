@@ -19,3 +19,7 @@ def show() -> None:
     )
 
     st.caption(f"Preview helper available: {bronze.load_csv_to_bronze.__name__}")
+
+
+if __name__ == "__main__":
+    show()

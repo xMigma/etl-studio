@@ -19,3 +19,7 @@ def show() -> None:
     st.caption(
         f"Training helper: {model.train_model.__name__} · Predict helper: {model.predict.__name__}"
     )
+
+
+if __name__ == "__main__":
+    show()

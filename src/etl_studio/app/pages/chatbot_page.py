@@ -20,3 +20,7 @@ def show() -> None:
     st.caption(
         f"Chat helper: {chatbot_sql.generate_sql_from_prompt.__name__} · Runner: {chatbot_sql.run_sql_query.__name__}"
     )
+
+
+if __name__ == "__main__":
+    show()

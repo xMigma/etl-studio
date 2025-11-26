@@ -17,3 +17,7 @@ def show() -> None:
     st.info("TODO: trigger silver.clean_data and display before/after comparisons.")
 
     st.caption(f"Transformation helper: {silver.clean_data.__name__}")
+
+
+if __name__ == "__main__":
+    show()

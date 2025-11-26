@@ -17,3 +17,7 @@ def show() -> None:
     )
 
     st.caption(f"Integration helper: {gold.create_gold_tables.__name__}")
+
+
+if __name__ == "__main__":
+    show()
