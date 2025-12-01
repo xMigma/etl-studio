@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: etl-studio-postgres
+    environment:
+      POSTGRES_USER: etl_user
+      POSTGRES_PASSWORD: etl_password
+      POSTGRES_DB: etl_database
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - etl-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U etl_user -d etl_database"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  init-db:
+    build:
+      context: .
+      dockerfile: src/postgres/Dockerfile
+    container_name: etl-studio-init
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: etl_user
+      POSTGRES_PASSWORD: etl_password
+      POSTGRES_DB: etl_database
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - etl-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  etl-network:
+    driver: bridge
