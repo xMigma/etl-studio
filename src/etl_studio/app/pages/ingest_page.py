@@ -67,8 +67,8 @@ def show_table_detail(table_name: str) -> None:
     dtypes_df.columns = ["Columna", "Tipo"]
     st.dataframe(dtypes_df, use_container_width=True, hide_index=True)
     
-    st.write("**Vista previa:**")
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.write("**Datos:**")
+    st.dataframe(df, use_container_width=True, hide_index=True, height=400)
 
 
 def show() -> None:
