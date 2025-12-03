@@ -13,9 +13,4 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
-
-
-# Incluir routers aquí cuando los crees:
-# from .routes import etl, ai
-# app.include_router(etl.router)
 # app.include_router(ai.router)

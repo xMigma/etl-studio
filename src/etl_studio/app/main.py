@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import streamlit as st
+from dotenv import load_dotenv
+
+# Cargar variables de entorno al inicio de la aplicación
+load_dotenv()
 
 
 def main() -> None:
