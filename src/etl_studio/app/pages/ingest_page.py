@@ -41,6 +41,20 @@ def fetch_table_csv(table_name: str) -> tuple[pd.DataFrame | None, bool]:
     return None, True
 
 
+def delete_table(table_name: str, is_mock: bool) -> tuple[bool, str]:
+    """Delete a table via API. In mock mode, does nothing."""
+    if is_mock:
+        return False, "No se puede eliminar en modo mock"
+    
+    try:
+        response = requests.delete(f"{API_BASE_URL}/bronze/tables/{table_name}", timeout=5)
+        if response.status_code == 200:
+            return True, f"Tabla '{table_name}' eliminada correctamente"
+        return False, f"Error al eliminar: {response.status_code}"
+    except requests.exceptions.RequestException as e:
+        return False, f"Error de conexión: {e}"
+
+
 @st.dialog("Detalle de Tabla", width="large")
 def show_table_detail(table_name: str) -> None:
     """Display table details in a dialog."""
@@ -104,14 +118,22 @@ def show() -> None:
     else:
         with st.container(height=400):
             for table in tables:
-                col1, col2, col3 = st.columns([3, 2, 1])
+                col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
                 with col1:
                     st.write(f"**{table['name']}**")
                 with col2:
                     st.write(f"{table['rows']:,} filas")
                 with col3:
-                    if st.button("Ver", key=f"btn_{table['name']}", use_container_width=True):
+                    if st.button("Ver", key=f"btn_ver_{table['name']}", use_container_width=True):
                         show_table_detail(table['name'])
+                with col4:
+                    if st.button("Eliminar", key=f"btn_del_{table['name']}", use_container_width=True, disabled=is_mock):
+                        success, message = delete_table(table['name'], is_mock)
+                        if success:
+                            st.success(message)
+                            st.rerun()
+                        else:
+                            st.error(message)
                 st.divider()
 
 
