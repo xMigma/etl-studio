@@ -139,6 +139,11 @@ def show() -> None:
                                 st.rerun()
                             else:
                                 st.error(message)
+    
+    st.divider()
+    
+    if st.button("Continuar a Silver", type="primary"):
+        st.switch_page("pages/cleaning_page.py")
 
 
 if __name__ == "__main__":
