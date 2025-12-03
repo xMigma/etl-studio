@@ -89,10 +89,13 @@ def show() -> None:
     """Render the ingestion (Bronze) workspace."""
 
     st.header("Ingest · Bronze")
-    st.write(
-        "Placeholder for file uploads, schema validations, and ingestion monitoring."
+    
+    st.subheader("Subir archivos")
+    uploaded_files = st.file_uploader(
+        "Arrastra o selecciona archivos CSV",
+        type=["csv"],
+        accept_multiple_files=True
     )
-    uploaded_files = st.file_uploader("Sube tus tablas en formato CSV", type=["csv"], accept_multiple_files=True)
     
     if uploaded_files:
         files = [(file.name, file.getvalue()) for file in uploaded_files]
@@ -104,37 +107,38 @@ def show() -> None:
                 st.error("Error al subir los archivos.")
         except requests.exceptions.RequestException:
             st.warning("API no disponible. Los archivos no se pudieron subir.")
-            
     
-    st.subheader("Tablas Disponibles")
+    st.divider()
+    
+    st.subheader("Tablas disponibles")
     
     tables, is_mock = fetch_tables()
     
     if is_mock:
-        st.warning("Usando datos de prueba (API no disponible)")
+        st.info("Modo de prueba: API no disponible")
     
     if not tables:
-        st.info("No hay tablas disponibles en la capa Bronze.")
+        st.info("No hay tablas disponibles.")
     else:
-        with st.container(height=400):
+        with st.container(height=350):
             for table in tables:
-                col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
-                with col1:
-                    st.write(f"**{table['name']}**")
-                with col2:
-                    st.write(f"{table['rows']:,} filas")
-                with col3:
-                    if st.button("Ver", key=f"btn_ver_{table['name']}", use_container_width=True):
-                        show_table_detail(table['name'])
-                with col4:
-                    if st.button("Eliminar", key=f"btn_del_{table['name']}", use_container_width=True, disabled=is_mock):
-                        success, message = delete_table(table['name'], is_mock)
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                st.divider()
+                with st.container(border=True):
+                    col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                    with col1:
+                        st.write(f"**{table['name']}**")
+                    with col2:
+                        st.caption(f"{table['rows']:,} filas")
+                    with col3:
+                        if st.button("Ver", key=f"btn_ver_{table['name']}", use_container_width=True):
+                            show_table_detail(table['name'])
+                    with col4:
+                        if st.button("Eliminar", key=f"btn_del_{table['name']}", use_container_width=True, disabled=is_mock, type="secondary"):
+                            success, message = delete_table(table['name'], is_mock)
+                            if success:
+                                st.success(message)
+                                st.rerun()
+                            else:
+                                st.error(message)
 
 
 if __name__ == "__main__":
