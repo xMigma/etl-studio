@@ -1,18 +1,32 @@
-"""Bronze layer ingestion helpers."""
+"""Bronze layer ETL operations."""
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
+import io
 
 import pandas as pd
 
+from etl_studio.postgres.bronze import to_bronze_db
 
-def load_csv_to_bronze(file_path: str | Path) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Load a raw CSV file into the bronze zone and capture metadata."""
 
-    # TODO: Implement real ingestion logic (validation, persistence, metadata capture).
-    df = pd.DataFrame()
-    metadata = {"rows": len(df), "columns": list(df.columns), "source": str(file_path)}
-    print(f"[Bronze] Ingest placeholder for {file_path}")
-    return df, metadata
+def load_csv_to_bronze(filename: str, content: bytes) -> None:
+    """Parse CSV and load to bronze layer.
+    
+    Args:
+        filename: Name of the uploaded file.
+        content: Raw bytes content of the CSV file.
+    """
+    # Parse CSV content
+    df = pd.read_csv(io.BytesIO(content))
+    
+    # Generate table name from filename
+    table_name = _sanitize_table_name(filename)
+    
+    # Load to database
+    to_bronze_db(table_name, df)
+
+
+def _sanitize_table_name(filename: str) -> str:
+    """Convert filename to valid SQL table name."""
+    table_name = filename.replace(".csv", "").lower()
+    return "".join(c if c.isalnum() or c == "_" else "_" for c in table_name)
