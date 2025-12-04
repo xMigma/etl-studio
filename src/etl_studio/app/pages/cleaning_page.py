@@ -87,8 +87,6 @@ def show() -> None:
     # Inicializar estado
     if "selected_rule" not in st.session_state:
         st.session_state.selected_rule = None
-    if "test_rule" not in st.session_state:
-        st.session_state.test_rule = None
     if "applied_rules" not in st.session_state:
         st.session_state.applied_rules = {}
     
@@ -115,8 +113,8 @@ def show() -> None:
     
     st.divider()
     
-    # Layout de 3 columnas
-    col_rules, col_editor, col_preview = st.columns([1, 1.2, 1.8])
+    # Layout de 2 columnas para reglas y configuración
+    col_rules, col_editor, col_applied = st.columns([1, 1.5, 1.5])
     
     with col_rules:
         st.subheader("Reglas")
@@ -152,31 +150,17 @@ def show() -> None:
                 
                 st.divider()
                 
-                col_test, col_add = st.columns(2)
-                with col_test:
-                    if st.button("Probar", type="secondary", use_container_width=True, icon=":material/visibility:"):
-                        st.session_state.test_rule = {
-                            "rule_id": rule["id"],
-                            "column": column,
-                            "value": value
-                        }
-                        st.rerun()
-                
-                with col_add:
-                    if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
-                        add_rule_to_table(selected_table, rule["id"], column, value)
-                        st.session_state.test_rule = None
-                        st.rerun()
+                if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
+                    add_rule_to_table(selected_table, rule["id"], column, value)
+                    st.rerun()
         else:
             st.caption("Selecciona una regla para configurarla")
     
-    with col_preview:
-        st.subheader("Preview")
+    with col_applied:
+        st.subheader("Reglas aplicadas")
         
-        # Mostrar reglas aplicadas con opción de eliminar
         applied_rules = get_applied_rules(selected_table)
         if applied_rules:
-            st.caption("**Reglas aplicadas:**")
             for i, r in enumerate(applied_rules):
                 rule_name = next((rule["name"] for rule in AVAILABLE_RULES if rule["id"] == r["rule_id"]), r["rule_id"])
                 col_rule, col_delete = st.columns([4, 1])
@@ -187,31 +171,29 @@ def show() -> None:
                         remove_rule_from_table(selected_table, i)
                         st.rerun()
             
+            st.write("")
             if st.button("Limpiar todas", type="tertiary", use_container_width=True, icon=":material/clear_all:"):
                 clear_rules_for_table(selected_table)
                 st.rerun()
-            
-            st.divider()
-        
-        tab_before, tab_after = st.tabs(["BEFORE", "AFTER"])
-        
-        with tab_before:
-            st.dataframe(df.head(10), use_container_width=True, height=300)
-        
-        with tab_after:
-            # Aplicar todas las reglas guardadas
-            df_after = apply_all_rules(df, applied_rules)
-            
-            # Si hay regla de prueba, aplicarla también
-            if st.session_state.test_rule:
-                test = st.session_state.test_rule
-                try:
-                    df_after = apply_rule(df_after, test["rule_id"], test["column"], test["value"])
-                    st.caption("*(Incluyendo regla en prueba)*")
-                except Exception as e:
-                    st.error(f"Error al aplicar regla: {e}")
-            
-            st.dataframe(df_after.head(10), use_container_width=True, height=300)
+        else:
+            st.caption("No hay reglas aplicadas")
+    
+    st.divider()
+    
+    # Preview: Before y After lado a lado
+    st.subheader("Preview")
+    
+    col_before, col_after = st.columns(2)
+    
+    with col_before:
+        st.markdown("**BEFORE**")
+        st.dataframe(df.head(15), use_container_width=True, height=350)
+    
+    with col_after:
+        st.markdown("**AFTER**")
+        # Aplicar todas las reglas guardadas
+        df_after = apply_all_rules(df, applied_rules)
+        st.dataframe(df_after.head(15), use_container_width=True, height=350)
                 
     st.divider()
     st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:")
