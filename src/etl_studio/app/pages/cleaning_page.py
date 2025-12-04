@@ -114,7 +114,7 @@ def show() -> None:
     st.divider()
     
     # Layout de 2 columnas para reglas y configuración
-    col_rules, col_editor, col_applied = st.columns([1, 1.5, 1.5])
+    col_rules, col_editor, col_applied = st.columns([1.5, 1.5, 1.5])
     
     with col_rules:
         st.subheader("Reglas")
@@ -124,31 +124,25 @@ def show() -> None:
             button_type = "secondary" if is_selected else "tertiary"
             
             if st.button(
-                rule['name'], 
-                key=f"btn_{rule['id']}", 
+                rule['name'],
+                key=f"btn_{rule['id']}",
                 use_container_width=True,
                 type=button_type
             ):
                 st.session_state.selected_rule = rule["id"]
-                st.session_state.test_rule = None
                 st.rerun()
     
     with col_editor:
         st.subheader("Configuración")
         
         if st.session_state.selected_rule:
-            rule = next((r for r in AVAILABLE_RULES if r["id"] == st.session_state.selected_rule), None)
+            rule = next((r for r in AVAILABLE_RULES if r["id"] == st.session_state.selected_rule))
             
             if rule:
-                st.info(f"**{rule['name']}**\n\n{rule['description']}")
-                
-                column = st.selectbox("Columna:", df.columns.tolist(), key="rule_column")
-                
+                column = st.selectbox("Columna:", df.columns.tolist(), key="rule_column")     
                 value = ""
                 if rule["id"] == "fillna":
                     value = st.text_input("Valor de relleno:", key="rule_value")
-                
-                st.divider()
                 
                 if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
                     add_rule_to_table(selected_table, rule["id"], column, value)
