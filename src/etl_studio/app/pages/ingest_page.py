@@ -103,6 +103,7 @@ def show() -> None:
             response = requests.post(f"{API_BASE_URL}/bronze/upload", files=[("files", f) for f in files], timeout=30)
             if response.status_code == 200:
                 st.success("Archivos subidos e ingeridos con éxito.")
+                st.rerun()
             else:
                 st.error("Error al subir los archivos.")
         except requests.exceptions.RequestException:
