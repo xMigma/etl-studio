@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from etl_studio.app import setup_page
 from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
 
 
@@ -79,6 +80,7 @@ def clear_rules_for_table(table_name: str) -> None:
 
 def show() -> None:
     """Render the cleaning (Silver) workspace."""
+    setup_page("Cleaning · Silver")
 
     st.header("Cleaning · Silver")
     
@@ -152,7 +154,7 @@ def show() -> None:
                 
                 col_test, col_add = st.columns(2)
                 with col_test:
-                    if st.button("Probar", type="secondary", use_container_width=True):
+                    if st.button("Probar", type="secondary", use_container_width=True, icon=":material/visibility:"):
                         st.session_state.test_rule = {
                             "rule_id": rule["id"],
                             "column": column,
@@ -161,7 +163,7 @@ def show() -> None:
                         st.rerun()
                 
                 with col_add:
-                    if st.button("Añadir", type="primary", use_container_width=True):
+                    if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
                         add_rule_to_table(selected_table, rule["id"], column, value)
                         st.session_state.test_rule = None
                         st.rerun()
@@ -179,7 +181,7 @@ def show() -> None:
                 rule_name = next((rule["name"] for rule in AVAILABLE_RULES if rule["id"] == r["rule_id"]), r["rule_id"])
                 col_rule, col_delete = st.columns([4, 1])
                 with col_rule:
-                    st.text(f"{i+1}. {rule_name} → {r['column']}")
+                    st.text(f"{i+1}. {rule_name} : {r['column']}")
                 with col_delete:
                     if st.button("", key=f"del_{i}", help="Eliminar regla", icon=":material/delete:"):
                         remove_rule_from_table(selected_table, i)
@@ -212,7 +214,7 @@ def show() -> None:
             st.dataframe(df_after.head(10), use_container_width=True, height=300)
                 
     st.divider()
-    st.button("Guardar cambios", type="primary", use_container_width=True)
+    st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:")
 
 
 if __name__ == "__main__":

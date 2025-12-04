@@ -9,10 +9,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+from etl_studio.app import setup_page
+
+
 def main() -> None:
     """Main Streamlit landing page for the ETL Studio workspace."""
 
-    st.set_page_config(page_title="ETL Studio", layout="wide")
+    setup_page("ETL Studio")
+    
     st.title("ETL Studio")
     st.subheader("Multipage workspace for ELT, ML, and analytics experiments")
     st.write(
