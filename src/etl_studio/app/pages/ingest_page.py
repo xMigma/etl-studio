@@ -2,43 +2,14 @@
 
 from __future__ import annotations
 
-import io
 import os
 
-import pandas as pd
 import streamlit as st
 import requests
 
-from etl_studio.app.pages.mock_data import MOCK_TABLES, get_mock_csv
+from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
-
-
-def fetch_tables() -> tuple[list, bool]:
-    """Fetch tables from API, fallback to mock data on failure."""
-    try:
-        response = requests.get(f"{API_BASE_URL}/bronze/tables", timeout=5)
-        if response.status_code == 200:
-            return response.json(), False
-    except requests.exceptions.RequestException:
-        pass
-    return MOCK_TABLES, True
-
-
-def fetch_table_csv(table_name: str) -> tuple[pd.DataFrame | None, bool]:
-    """Fetch table CSV from API, fallback to mock CSV on failure."""
-    try:
-        response = requests.get(f"{API_BASE_URL}/bronze/tables/{table_name}", timeout=5)
-        if response.status_code == 200:
-            return pd.read_csv(io.StringIO(response.text)), False
-    except requests.exceptions.RequestException:
-        pass
-    
-    # Fallback a CSV local
-    mock_csv = get_mock_csv(table_name)
-    if mock_csv:
-        return pd.read_csv(io.StringIO(mock_csv)), True
-    return None, True
 
 
 def delete_table(table_name: str, is_mock: bool) -> tuple[bool, str]:
