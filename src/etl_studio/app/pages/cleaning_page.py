@@ -10,12 +10,12 @@ from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
 
 
 # Reglas disponibles para limpieza
-AVAILABLE_RULES = [
-    {"id": "fillna", "name": "FillNA", "description": "Rellenar valores nulos"},
-    {"id": "trim", "name": "Trim", "description": "Eliminar espacios en blanco"},
-    {"id": "lowercase", "name": "Lowercase", "description": "Convertir a minúsculas"},
-    {"id": "cast_date", "name": "Cast Date", "description": "Convertir a fecha"},
-]
+AVAILABLE_RULES = {
+    "fillna": {"name": "FillNA", "description": "Rellenar valores nulos"},
+    "trim": {"name": "Trim", "description": "Eliminar espacios en blanco"},
+    "lowercase": {"name": "Lowercase", "description": "Convertir a minúsculas"},
+    "cast_date": {"name": "Cast Date", "description": "Convertir a fecha"},
+}
 
 
 def apply_rule(df: pd.DataFrame, rule_id: str, column: str, value: str) -> pd.DataFrame:
@@ -119,33 +119,34 @@ def show() -> None:
     with col_rules:
         st.subheader("Reglas")
         
-        for rule in AVAILABLE_RULES:
-            is_selected = st.session_state.selected_rule == rule["id"]
+        for rule_id, rule_data in AVAILABLE_RULES.items():
+            is_selected = st.session_state.selected_rule == rule_id
             button_type = "secondary" if is_selected else "tertiary"
             
             if st.button(
-                rule['name'],
-                key=f"btn_{rule['id']}",
+                rule_data['name'],
+                key=f"btn_{rule_id}",
                 use_container_width=True,
                 type=button_type
             ):
-                st.session_state.selected_rule = rule["id"]
+                st.session_state.selected_rule = rule_id
                 st.rerun()
     
     with col_editor:
         st.subheader("Configuración")
         
         if st.session_state.selected_rule:
-            rule = next((r for r in AVAILABLE_RULES if r["id"] == st.session_state.selected_rule))
+            rule_id = st.session_state.selected_rule
+            rule = AVAILABLE_RULES.get(rule_id)
             
             if rule:
                 column = st.selectbox("Columna:", df.columns.tolist(), key="rule_column")     
                 value = ""
-                if rule["id"] == "fillna":
+                if rule_id == "fillna":
                     value = st.text_input("Valor de relleno:", key="rule_value")
                 
                 if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
-                    add_rule_to_table(selected_table, rule["id"], column, value)
+                    add_rule_to_table(selected_table, rule_id, column, value)
                     st.rerun()
         else:
             st.caption("Selecciona una regla para configurarla")
@@ -156,7 +157,8 @@ def show() -> None:
         applied_rules = get_applied_rules(selected_table)
         if applied_rules:
             for i, r in enumerate(applied_rules):
-                rule_name = next((rule["name"] for rule in AVAILABLE_RULES if rule["id"] == r["rule_id"]), r["rule_id"])
+                rule_data = AVAILABLE_RULES.get(r["rule_id"])
+                rule_name = rule_data["name"] if rule_data else r["rule_id"]
                 col_rule, col_delete = st.columns([4, 1])
                 with col_rule:
                     st.text(f"{i+1}. {rule_name} : {r['column']}")
