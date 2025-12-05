@@ -2,46 +2,62 @@
 
 from __future__ import annotations
 
+import os
+
 import pandas as pd
+import requests
 import streamlit as st
 
 from etl_studio.app import setup_page
+from etl_studio.app.pages.mock_data import MOCK_RULES, apply_mock_rules
 from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
 
 
-# Reglas disponibles para limpieza
-AVAILABLE_RULES = {
-    "fillna": {"name": "FillNA", "description": "Rellenar valores nulos"},
-    "trim": {"name": "Trim", "description": "Eliminar espacios en blanco"},
-    "lowercase": {"name": "Lowercase", "description": "Convertir a minúsculas"},
-    "cast_date": {"name": "Cast Date", "description": "Convertir a fecha"},
-}
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 
-def apply_rule(df: pd.DataFrame, rule_id: str, column: str, value: str) -> pd.DataFrame:
-    """Apply a cleaning rule to the dataframe."""
-    result = df.copy()
+def fetch_rules() -> tuple[dict, bool]:
+    """Fetch cleaning rules from API, fallback to mock on failure."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/cleaning/rules", timeout=5)
+        if response.status_code == 200:
+            return response.json(), False
+    except requests.exceptions.RequestException:
+        pass
+    return MOCK_RULES, True
+
+
+def fetch_preview(table: str, rules: list[dict], df: pd.DataFrame) -> pd.DataFrame:
+    """Fetch preview from API, fallback to local processing on failure."""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/cleaning/preview",
+            json={"table": table, "rules": rules},
+            timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return pd.DataFrame(data["after"])
+    except requests.exceptions.RequestException:
+        pass
     
-    if rule_id == "fillna":
-        result[column] = result[column].fillna(value)
-    elif rule_id == "trim":
-        if result[column].dtype == "object":
-            result[column] = result[column].str.strip()
-    elif rule_id == "lowercase":
-        if result[column].dtype == "object":
-            result[column] = result[column].str.lower()
-    elif rule_id == "cast_date":
-        result[column] = pd.to_datetime(result[column], errors="coerce")
-    
-    return result
+    # Fallback: procesar localmente
+    return apply_mock_rules(df, rules)
 
 
-def apply_all_rules(df: pd.DataFrame, rules: list[dict]) -> pd.DataFrame:
-    """Apply all rules in order to the dataframe."""
-    result = df.copy()
-    for rule in rules:
-        result = apply_rule(result, rule["rule_id"], rule["column"], rule["value"])
-    return result
+def apply_changes(table: str, rules: list[dict]) -> bool:
+    """Apply changes via API, return success status."""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/cleaning/apply",
+            json={"table": table, "rules": rules},
+            timeout=10
+        )
+        if response.status_code == 200:
+            return True
+    except requests.exceptions.RequestException:
+        pass
+    return False
 
 
 def get_applied_rules(table_name: str) -> list[dict]:
@@ -95,9 +111,10 @@ def show() -> None:
     if "applied_rules" not in st.session_state:
         st.session_state.applied_rules = {}
     
-    tables, is_mock = fetch_tables()
+    tables, tables_mock = fetch_tables()
+    available_rules, rules_mock = fetch_rules()
     
-    if is_mock:
+    if tables_mock or rules_mock:
         st.info("Modo de prueba: API no disponible")
     
     table_names = [table['name'] for table in tables]
@@ -124,7 +141,7 @@ def show() -> None:
     with col_rules:
         st.subheader("Reglas")
         
-        for rule_id, rule_data in AVAILABLE_RULES.items():
+        for rule_id, rule_data in available_rules.items():
             is_selected = st.session_state.selected_rule == rule_id
             button_type = "secondary" if is_selected else "tertiary"
             
@@ -142,12 +159,12 @@ def show() -> None:
         
         if st.session_state.selected_rule:
             rule_id = st.session_state.selected_rule
-            rule = AVAILABLE_RULES.get(rule_id)
+            rule = available_rules.get(rule_id)
             
             if rule:
                 column = st.selectbox("Columna:", df.columns.tolist(), key="rule_column")     
                 value = ""
-                if rule_id == "fillna":
+                if rule.get("requires_value", False) or rule_id == "fillna":
                     value = st.text_input("Valor de relleno:", key="rule_value")
                 
                 if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
@@ -162,7 +179,7 @@ def show() -> None:
         applied_rules = get_applied_rules(selected_table)
         if applied_rules:
             for i, r in enumerate(applied_rules):
-                rule_data = AVAILABLE_RULES.get(r["rule_id"])
+                rule_data = available_rules.get(r["rule_id"])
                 rule_name = rule_data["name"] if rule_data else r["rule_id"]
                 col_rule, col_delete = st.columns([4, 1])
                 with col_rule:
@@ -186,19 +203,24 @@ def show() -> None:
     
     col_before, col_after = st.columns(2)
     
+    df_after = fetch_preview(selected_table, applied_rules, df)
+    
     with col_before:
         st.markdown("**BEFORE**")
         st.dataframe(df.head(15), use_container_width=True, height=350)
     
     with col_after:
         st.markdown("**AFTER**")
-        # Aplicar todas las reglas guardadas
-        df_after = apply_all_rules(df, applied_rules)
         st.dataframe(df_after.head(15), use_container_width=True, height=350)
                 
     st.divider()
-    st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:")
-
-
+    
+    if st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:"):
+        success = apply_changes(selected_table, applied_rules)
+        if success:
+            st.success("Cambios guardados correctamente en la capa Silver")
+        else:
+            st.warning("API no disponible. Los cambios no se han guardado.")
+            
 if __name__ == "__main__":
     show()
