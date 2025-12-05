@@ -53,11 +53,9 @@ def apply_changes(table: str, rules: list[dict]) -> bool:
             json={"table": table, "rules": rules},
             timeout=10
         )
-        if response.status_code == 200:
-            return True
+        return response.status_code == 200
     except requests.exceptions.RequestException:
-        pass
-    return False
+        return False
 
 
 def get_applied_rules(table_name: str) -> list[dict]:
