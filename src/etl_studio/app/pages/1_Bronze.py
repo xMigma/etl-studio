@@ -230,7 +230,7 @@ def show() -> None:
     st.divider()
     
     if st.button("Continuar a Silver", type="primary"):
-        st.switch_page("pages/cleaning_page.py")
+        st.switch_page("pages/2_Silver.py")
 
 
 if __name__ == "__main__":
