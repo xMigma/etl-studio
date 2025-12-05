@@ -6,7 +6,7 @@ import io
 
 import pandas as pd
 
-from etl_studio.postgres.bronze import to_bronze_db, get_table_names_db
+from etl_studio.postgres.bronze import get_table_content_db, to_bronze_db, get_table_names_db
 
 
 def load_csv_to_bronze(filename: str, content: bytes) -> None:
@@ -24,3 +24,8 @@ def get_bronze_table_names() -> list[dict]:
     """Get all bronze table names."""
     table_names = get_table_names_db()
     return [{"name": name} for name in table_names]
+
+def get_table_content(table_name: str) -> str:
+    """Get content of a specific table as CSV string."""
+    df = get_table_content_db(table_name)
+    return df.to_csv(index=False)

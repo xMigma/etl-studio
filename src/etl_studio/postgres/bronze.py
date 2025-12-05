@@ -36,3 +36,10 @@ def get_table_names_db() -> list[str]:
         """))
         
         return [row[0] for row in result]
+
+def get_table_content_db(table_name: str) -> pd.DataFrame:
+    """Get content of a specific table from the bronze schema."""
+    engine = get_engine()
+    
+    query = f"SELECT * FROM bronze.{table_name}"
+    return pd.read_sql(query, engine)

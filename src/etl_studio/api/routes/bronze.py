@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
+from fastapi.responses import Response
 
-from etl_studio.etl.bronze import load_csv_to_bronze, get_bronze_table_names
+from etl_studio.etl.bronze import load_csv_to_bronze, get_bronze_table_names, get_table_content
 from etl_studio.api.schemas.bronze import BronzeUploadResponse, BronzeTableName
 
 router_bronze = APIRouter(prefix="/bronze", tags=["bronze"])
@@ -47,4 +48,31 @@ async def list_bronze_tables():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving table names: {str(e)}"
+        )
+    
+
+@router_bronze.get("/tables/{table_name}",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"text/csv": {}},
+            "description": "CSV file download"
+        }
+    }
+)
+async def download_table_csv(table_name: str):
+    """Download content of a specific bronze table as CSV file."""
+    try:
+        csv_content = get_table_content(table_name)
+        
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={table_name}.csv"}
+        )
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving table content: {str(e)}"
         )
