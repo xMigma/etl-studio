@@ -45,24 +45,24 @@ def main() -> None:
     
     with col1:
         with st.container(border=True):
-            st.markdown("### :material/download: Bronze Layer")
+            st.markdown("### Bronze Layer")
             st.markdown("**Ingesta de datos**")
             st.caption("Carga y visualiza datos en bruto desde múltiples fuentes.")
-            st.page_link("pages/ingest_page.py", label="Ir a Bronze →", use_container_width=True)
+            st.page_link("pages/1_Bronze.py", label="Ir a Bronze →", use_container_width=True)
     
     with col2:
         with st.container(border=True):
-            st.markdown("### :material/cleaning_services: Silver Layer")
+            st.markdown("### Silver Layer")
             st.markdown("**Limpieza y transformación**")
             st.caption("Procesa, limpia y estandariza tus datasets.")
-            st.page_link("pages/cleaning_page.py", label="Ir a Silver →", use_container_width=True)
+            st.page_link("pages/2_Silver.py", label="Ir a Silver →", use_container_width=True)
     
     with col3:
         with st.container(border=True):
-            st.markdown("### :material/bar_chart: Gold Layer")
+            st.markdown("### Gold Layer")
             st.markdown("**Analítica y reportes**")
             st.caption("Datos agregados listos para consumo y visualización.")
-            st.page_link("pages/gold_page.py", label="Ir a Gold →", use_container_width=True)
+            st.page_link("pages/3_Gold.py", label="Ir a Gold →", use_container_width=True)
     
     st.markdown("")
     
@@ -71,17 +71,17 @@ def main() -> None:
     
     with col4:
         with st.container(border=True):
-            st.markdown("### :material/model_training: Machine Learning")
+            st.markdown("### Machine Learning")
             st.markdown("**Modelos predictivos**")
             st.caption("Entrena, evalúa y despliega modelos de ML.")
-            st.page_link("pages/model_page.py", label="Ir a ML →", use_container_width=True)
+            st.page_link("pages/4_ML_Model.py", label="Ir a ML →", use_container_width=True)
     
     with col5:
         with st.container(border=True):
-            st.markdown("### :material/chat: Chatbot SQL")
+            st.markdown("### Chatbot SQL")
             st.markdown("**Consultas en lenguaje natural**")
             st.caption("Pregunta a tus datos usando IA conversacional.")
-            st.page_link("pages/chatbot_page.py", label="Ir a Chatbot →", use_container_width=True)
+            st.page_link("pages/5_Chatbot.py", label="Ir a Chatbot →", use_container_width=True)
     
     with col6:
         with st.container(border=True):
