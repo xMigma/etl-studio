@@ -130,14 +130,14 @@ def show() -> None:
     st.divider()
     
     # Layout de 2 columnas para reglas y configuración
-    col_rules, col_editor, col_applied = st.columns([1.5, 1.5, 1.5])
+    col_rules, col_editor, col_applied = st.columns([1.5, 1.5, 1.5], gap="large")
     
     with col_rules:
         st.subheader("Reglas")
         
         for rule_id, rule_data in available_rules.items():
             is_selected = st.session_state.selected_rule == rule_id
-            button_type = "secondary" if is_selected else "tertiary"
+            button_type = "primary" if is_selected else "secondary"
             
             if st.button(
                 rule_data['name'],
