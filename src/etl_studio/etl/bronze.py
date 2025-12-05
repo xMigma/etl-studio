@@ -6,19 +6,13 @@ import io
 
 import pandas as pd
 
-from etl_studio.postgres.bronze import get_table_content_db, to_bronze_db, get_table_names_db
+from etl_studio.postgres.bronze import get_table_content_db, to_bronze_db, get_table_names_db, delete_table_db
 
 
 def load_csv_to_bronze(filename: str, content: bytes) -> None:
     """Parse CSV and load to bronze layer."""
     df = pd.read_csv(io.BytesIO(content))
-    table_name = _clean_table_name(filename)
-    to_bronze_db(table_name, df)
-
-def _clean_table_name(filename: str) -> str:
-    """Convert filename to valid SQL table name."""
-    table_name = filename.replace(".csv", "").lower()
-    return "".join(c if c.isalnum() or c == "_" else "_" for c in table_name)
+    to_bronze_db(filename, df)
 
 def get_bronze_table_names() -> list[dict]:
     """Get all bronze table names."""
@@ -31,3 +25,7 @@ def get_table_content(table_name: str, limit: int | None = None) -> str:
     if limit:
         df = df.head(limit)
     return df.to_csv(index=False)
+
+def delete_table(table_name: str) -> bool:
+    """Delete a specific table from the bronze layer."""
+    return delete_table_db(table_name)

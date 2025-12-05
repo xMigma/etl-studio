@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
 from fastapi.responses import Response
 
-from etl_studio.etl.bronze import load_csv_to_bronze, get_bronze_table_names, get_table_content
+from etl_studio.etl.bronze import load_csv_to_bronze, get_bronze_table_names, get_table_content, delete_table
 from etl_studio.api.schemas.bronze import BronzeUploadResponse, BronzeTableName
 
 router_bronze = APIRouter(prefix="/bronze", tags=["bronze"])
@@ -38,7 +38,7 @@ async def upload_bronze_files(files: list[UploadFile] = File(...)):
         )
     
 @router_bronze.get("/tables/", response_model=list[BronzeTableName], status_code=status.HTTP_200_OK)
-async def list_bronze_tables():
+def list_bronze_tables():
     """Endpoint to list all table names in the bronze layer."""
     try:
         table_names = get_bronze_table_names()
@@ -60,7 +60,7 @@ async def list_bronze_tables():
         }
     }
 )
-async def download_table_csv(table_name: str, preview: bool = False):
+def download_table_csv(table_name: str, preview: bool = False):
     """Download content of a specific bronze table as CSV file."""
     try:
         csv_content = get_table_content(table_name, limit=10 if preview else None)
@@ -79,4 +79,21 @@ async def download_table_csv(table_name: str, preview: bool = False):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving table content: {str(e)}"
+        )
+    
+@router_bronze.delete("/tables/{table_name}", status_code=status.HTTP_200_OK)
+def delete_bronze_table(table_name: str):
+    """Endpoint to delete a specific table from the bronze layer."""
+    try:
+        deleted = delete_table(table_name)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting table: {str(e)}"
+        )
+    
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Table '{table_name}' not found"
         )
