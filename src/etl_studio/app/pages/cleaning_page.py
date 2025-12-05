@@ -55,14 +55,19 @@ def add_rule_to_table(table_name: str, rule_id: str, column: str, value: str) ->
     """Add a rule to the table's applied rules."""
     if "applied_rules" not in st.session_state:
         st.session_state.applied_rules = {}
+    
     if table_name not in st.session_state.applied_rules:
         st.session_state.applied_rules[table_name] = []
+        
+    table = st.session_state.applied_rules[table_name]
+    exists = any(r["rule_id"] == rule_id and r["column"] == column for r in table) 
     
-    st.session_state.applied_rules[table_name].append({
-        "rule_id": rule_id,
-        "column": column,
-        "value": value
-    })
+    if not exists:
+        st.session_state.applied_rules[table_name].append({
+            "rule_id": rule_id,
+            "column": column,
+            "value": value
+        })
 
 
 def remove_rule_from_table(table_name: str, index: int) -> None:
