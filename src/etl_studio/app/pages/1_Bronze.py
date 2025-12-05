@@ -7,8 +7,11 @@ import streamlit as st
 
 import pandas as pd
 
+from etl_studio.app import setup_page
 from etl_studio.config import API_BASE_URL
 from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
+
+setup_page("Bronze · ETL Studio")
 
 
 def delete_table(table_name: str, is_mock: bool) -> tuple[bool, str]:

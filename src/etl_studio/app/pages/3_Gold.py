@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import streamlit as st
 
+from etl_studio.app import setup_page
 from etl_studio.etl import gold
+
+setup_page("Gold · ETL Studio")
 
 
 def show() -> None:

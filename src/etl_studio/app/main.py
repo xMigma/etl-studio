@@ -71,10 +71,10 @@ def main() -> None:
     
     with col4:
         with st.container(border=True):
-            st.markdown("### Machine Learning")
-            st.markdown("**Modelos predictivos**")
+            st.markdown("### Modelo Predictivo")
+            st.markdown("**Machine Learning**")
             st.caption("Entrena, evalúa y despliega modelos de ML.")
-            st.page_link("pages/4_ML_Model.py", label="Ir a ML →", use_container_width=True)
+            st.page_link("pages/4_Modelo_Predictivo.py", label="Ir a Modelo Predictivo →", use_container_width=True)
     
     with col5:
         with st.container(border=True):

@@ -11,6 +11,8 @@ from etl_studio.app.mock_data import MOCK_RULES, apply_mock_rules
 from etl_studio.config import API_BASE_URL
 from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
 
+setup_page("Silver · ETL Studio")
+
 
 def fetch_rules() -> tuple[dict, bool]:
     """Fetch cleaning rules from API, fallback to mock on failure."""
