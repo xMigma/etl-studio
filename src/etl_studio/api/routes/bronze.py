@@ -56,19 +56,23 @@ async def list_bronze_tables():
     responses={
         200: {
             "content": {"text/csv": {}},
-            "description": "CSV file download"
+            "description": "CSV file download or preview"
         }
     }
 )
-async def download_table_csv(table_name: str):
+async def download_table_csv(table_name: str, preview: bool = False):
     """Download content of a specific bronze table as CSV file."""
     try:
-        csv_content = get_table_content(table_name)
+        csv_content = get_table_content(table_name, limit=10 if preview else None)
+        
+        headers = {}
+        if not preview:
+            headers["Content-Disposition"] = f"attachment; filename={table_name}.csv"
         
         return Response(
             content=csv_content,
             media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={table_name}.csv"}
+            headers=headers
         )
     
     except Exception as e:
