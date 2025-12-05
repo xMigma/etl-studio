@@ -10,7 +10,7 @@ from typing import Any
 import pandas as pd
 import requests
 
-from etl_studio.app.pages.mock_data import MOCK_TABLES, get_mock_csv
+from etl_studio.app.mock_data import MOCK_TABLES, get_mock_csv
 
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")

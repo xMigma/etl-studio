@@ -9,7 +9,7 @@ import requests
 import streamlit as st
 
 from etl_studio.app import setup_page
-from etl_studio.app.pages.mock_data import MOCK_RULES, apply_mock_rules
+from etl_studio.app.mock_data import MOCK_RULES, apply_mock_rules
 from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
 
 

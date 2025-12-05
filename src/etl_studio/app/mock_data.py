@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 # Ruta a los CSVs de bronze para fallback
-BRONZE_PATH = Path(__file__).parent.parent.parent.parent.parent / "data" / "bronze"
+BRONZE_PATH = Path(__file__).parent.parent.parent.parent / "data" / "bronze"
 
 MOCK_TABLES = [
     {"name": "customers", "rows": 5},
