@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
 
-from etl_studio.etl.bronze import load_csv_to_bronze
-from etl_studio.api.schemas.bronze import BronzeUploadResponse
+from etl_studio.etl.bronze import load_csv_to_bronze, get_bronze_table_names
+from etl_studio.api.schemas.bronze import BronzeUploadResponse, BronzeTableName
 
 router_bronze = APIRouter(prefix="/bronze", tags=["bronze"])
 
@@ -34,4 +34,17 @@ async def upload_bronze_files(files: list[UploadFile] = File(...)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing file: {str(e)}"
+        )
+    
+@router_bronze.get("/tables/", response_model=list[BronzeTableName], status_code=status.HTTP_200_OK)
+async def list_bronze_tables():
+    """Endpoint to list all table names in the bronze layer."""
+    try:
+        table_names = get_bronze_table_names()
+        return table_names
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving table names: {str(e)}"
         )

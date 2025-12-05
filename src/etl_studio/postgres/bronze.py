@@ -9,12 +9,7 @@ from etl_studio.postgres.postgres import get_engine
 
 
 def to_bronze_db(table_name: str, df: pd.DataFrame) -> None:
-    """Write DataFrame to the bronze schema in PostgreSQL.
-    
-    Args:
-        table_name: Sanitized table name.
-        df: DataFrame to write.
-    """
+    """Write DataFrame to the bronze schema in PostgreSQL."""
     engine = get_engine()
     with engine.connect() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS bronze"))
@@ -27,3 +22,17 @@ def to_bronze_db(table_name: str, df: pd.DataFrame) -> None:
         if_exists="replace",
         index=False
     )
+
+def get_table_names_db() -> list[str]:
+    """Get all table names from the bronze schema."""
+    engine = get_engine()
+    
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'bronze'
+            ORDER BY table_name
+        """))
+        
+        return [row[0] for row in result]
