@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import os
-
-import streamlit as st
 import requests
+import streamlit as st
 
+from etl_studio.config import API_BASE_URL
 from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
-
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 
 def delete_table(table_name: str, is_mock: bool) -> tuple[bool, str]:

@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-import os
-
 import pandas as pd
 import requests
 import streamlit as st
 
 from etl_studio.app import setup_page
 from etl_studio.app.mock_data import MOCK_RULES, apply_mock_rules
+from etl_studio.config import API_BASE_URL
 from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
-
-
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 
 def fetch_rules() -> tuple[dict, bool]:
