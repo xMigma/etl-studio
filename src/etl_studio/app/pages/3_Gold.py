@@ -79,8 +79,8 @@ def show() -> None:
             left_df = table_dfs[left_table]
             left_key = st.selectbox("Columna clave:", left_df.columns.tolist(), key="left_key_select")
             
-            with st.expander("Vista previa", expanded=False):
-                st.dataframe(left_df.head(5), use_container_width=True)
+            if st.button("Ver detalles", key="btn_ver_left", use_container_width=True, icon=":material/visibility:"):
+                show_table_detail(left_table, left_df)
     
     with col_join:
         st.markdown("**Tipo de Join**")
@@ -95,8 +95,8 @@ def show() -> None:
             right_df = table_dfs[right_table]
             right_key = st.selectbox("Columna clave:", right_df.columns.tolist(), key="right_key_select")
             
-            with st.expander("Vista previa", expanded=False):
-                st.dataframe(right_df.head(5), use_container_width=True)
+            if st.button("Ver detalles", key="btn_ver_right", use_container_width=True, icon=":material/visibility:"):
+                show_table_detail(right_table, right_df)
     
     st.divider()
     
