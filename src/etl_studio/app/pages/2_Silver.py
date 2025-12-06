@@ -7,6 +7,7 @@ import requests
 import streamlit as st
 
 from etl_studio.app import setup_page
+from etl_studio.app.components import render_table_detail
 from etl_studio.app.mock_data import MOCK_RULES, apply_mock_rules
 from etl_studio.config import API_BASE_URL
 from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
@@ -95,6 +96,17 @@ def clear_rules_for_table(table_name: str) -> None:
         st.session_state.applied_rules[table_name] = []
 
 
+@st.dialog("Detalle de Tabla", width="large")
+def show_table_detail(table_name: str) -> None:
+    """Display table details in a dialog."""
+    with st.spinner(f"Cargando datos de {table_name}..."):
+        df, is_mock = fetch_table_csv(table_name)
+   
+    _, main_col, _ = st.columns([0.5, 9, 0.5])
+    with main_col:
+        render_table_detail(df, table_name, is_mock)
+
+
 def show() -> None:
     """Render the cleaning (Silver) workspace."""
     setup_page("Cleaning · Silver")
@@ -115,10 +127,17 @@ def show() -> None:
     
     table_names = [table['name'] for table in tables]
     
-    selected_table = st.selectbox(
-        "Selecciona la tabla a limpiar:",
-        table_names,
-    )
+    col_select, col_detail = st.columns([4, 1], vertical_alignment="bottom")
+    
+    with col_select:
+        selected_table = st.selectbox(
+            "Selecciona la tabla a limpiar:",
+            table_names,
+        )
+    
+    with col_detail:
+        if selected_table and st.button("Ver detalles", use_container_width=True, icon=":material/visibility:"):
+            show_table_detail(selected_table)
     
     if not selected_table:
         return
