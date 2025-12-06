@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from etl_studio.app import setup_page
-from etl_studio.app.components import render_table_detail
+from etl_studio.app.components import show_table_detail_dialog
 from etl_studio.app.data import fetch, fetch_table_csv, post
 from etl_studio.app.mock_data import apply_mock_rules
 
@@ -63,12 +63,7 @@ def clear_rules_for_table(table_name: str) -> None:
 @st.dialog("Detalle de Tabla", width="large")
 def show_table_detail(table_name: str) -> None:
     """Display table details in a dialog."""
-    with st.spinner(f"Cargando datos de {table_name}..."):
-        df, is_mock = fetch_table_csv("silver", table_name)
-   
-    _, main_col, _ = st.columns([0.5, 9, 0.5])
-    with main_col:
-        render_table_detail(df, table_name, is_mock)
+    show_table_detail_dialog(table_name, layer="silver")
 
 
 def show() -> None:

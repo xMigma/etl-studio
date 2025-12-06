@@ -6,8 +6,8 @@ import requests
 import streamlit as st
 
 from etl_studio.app import setup_page
-from etl_studio.app.components import render_table_detail
-from etl_studio.app.data import fetch, fetch_table_csv, delete
+from etl_studio.app.components import show_table_detail_dialog
+from etl_studio.app.data import fetch, delete
 from etl_studio.config import API_BASE_URL
 
 setup_page("Bronze · ETL Studio")
@@ -16,14 +16,7 @@ setup_page("Bronze · ETL Studio")
 @st.dialog("Detalle de Tabla", width="large")
 def show_table_detail(table_name: str) -> None:
     """Display table details in a dialog."""
-    with st.spinner(f"Cargando datos de {table_name}..."):
-        df, is_mock = fetch_table_csv("bronze", table_name)
-   
-    # Contenedor principal con márgenes laterales
-    _, main_col, _ = st.columns([0.5, 9, 0.5])
-    
-    with main_col:
-        render_table_detail(df, table_name, is_mock)
+    show_table_detail_dialog(table_name, layer="bronze")
     
 
 

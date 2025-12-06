@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pandas as pd
 import streamlit as st
+
+if TYPE_CHECKING:
+    from etl_studio.app.data import Layer
 
 
 def render_table_metrics(df: pd.DataFrame) -> None:
@@ -152,3 +157,30 @@ def render_table_detail(df: pd.DataFrame | None, table_name: str, is_mock: bool 
     render_basic_stats(df)
     render_distributions(df, key_prefix=table_name)
     render_quick_detections(df)
+
+
+def show_table_detail_dialog(
+    table_name: str,
+    layer: "Layer | None" = None,
+    df: pd.DataFrame | None = None,
+) -> None:
+    """Display table details in a modal dialog.
+    
+    Args:
+        table_name: Name of the table to display
+        layer: Layer to fetch from (required if df is None)
+        df: Pre-loaded DataFrame (if None, fetches from layer)
+    """
+    from etl_studio.app.data import fetch_table_csv
+    
+    is_mock = False
+    if df is None:
+        if layer is None:
+            st.error("Debe especificarse 'layer' o 'df'")
+            return
+        with st.spinner(f"Cargando datos de {table_name}..."):
+            df, is_mock = fetch_table_csv(layer, table_name)
+    
+    _, main_col, _ = st.columns([0.5, 9, 0.5])
+    with main_col:
+        render_table_detail(df, table_name, is_mock)

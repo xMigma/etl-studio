@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from etl_studio.app import setup_page
-from etl_studio.app.components import render_table_detail
+from etl_studio.app.components import show_table_detail_dialog
 from etl_studio.app.data import fetch, fetch_table_csv, post
 from etl_studio.app.mock_data import JOIN_TYPES, apply_mock_join
 
@@ -31,9 +31,7 @@ def save_gold_table(df: pd.DataFrame, name: str) -> bool:
 @st.dialog("Detalle de Tabla", width="large")
 def show_table_detail(table_name: str, df: pd.DataFrame) -> None:
     """Display table details in a dialog."""
-    _, main_col, _ = st.columns([0.5, 9, 0.5])
-    with main_col:
-        render_table_detail(df, table_name, is_mock=True)
+    show_table_detail_dialog(table_name, df=df)
 
 
 def render_table_selector(
