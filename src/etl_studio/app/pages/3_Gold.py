@@ -3,59 +3,29 @@
 from __future__ import annotations
 
 import pandas as pd
-import requests
 import streamlit as st
 
 from etl_studio.app import setup_page
 from etl_studio.app.components import render_table_detail
+from etl_studio.app.data import fetch, fetch_table_csv, post
 from etl_studio.app.mock_data import JOIN_TYPES, apply_mock_join
-from etl_studio.config import API_BASE_URL
-from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
 
 setup_page("Gold · ETL Studio")
 
 
-def fetch_silver_tables() -> tuple[list[dict], bool]:
-    """Fetch tables from Silver layer, fallback to Bronze tables for mock."""
-    try:
-        response = requests.get(f"{API_BASE_URL}/silver/tables", timeout=5)
-        if response.status_code == 200:
-            return response.json(), False
-    except requests.exceptions.RequestException:
-        pass
-    # Fallback: usar tablas de bronze como mock
-    return fetch_tables()
-
-
-def fetch_gold_tables() -> list[dict] | None:
-    """Fetch existing Gold tables."""
-    try:
-        response = requests.get(f"{API_BASE_URL}/gold/tables", timeout=5)
-        if response.status_code == 200:
-            return response.json()
-    except requests.exceptions.RequestException:
-        pass
-    return None
-
-
 def save_gold_table(df: pd.DataFrame, name: str) -> bool:
-    """Save a Gold table via API."""
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/gold/tables",
-            json={"name": name, "data": df.to_dict(orient="records")},
-            timeout=10
-        )
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
-        # Mock: guardar en session state
-        if "gold_tables" not in st.session_state:
-            st.session_state.gold_tables = []
-        st.session_state.gold_tables.append({"name": name, "rows": len(df)})
-        if "gold_dataframes" not in st.session_state:
-            st.session_state.gold_dataframes = {}
-        st.session_state.gold_dataframes[name] = df
-        return True
+    """Save a Gold table. Uses API if available, otherwise saves to session state."""
+    post("gold", "tables", {"name": name, "data": df.to_dict(orient="records")})
+    
+    # Siempre guardar en session_state para visualización local
+    if "gold_tables" not in st.session_state:
+        st.session_state.gold_tables = []
+    st.session_state.gold_tables.append({"name": name, "rows": len(df)})
+    if "gold_dataframes" not in st.session_state:
+        st.session_state.gold_dataframes = {}
+    st.session_state.gold_dataframes[name] = df
+    
+    return True
 
 
 @st.dialog("Detalle de Tabla", width="large")
@@ -77,7 +47,7 @@ def show() -> None:
     if "gold_dataframes" not in st.session_state:
         st.session_state.gold_dataframes = {}
     
-    tables, is_mock = fetch_silver_tables()
+    tables, is_mock = fetch("silver", "tables")
     
     if is_mock:
         st.info("Modo de prueba: API no disponible")
@@ -93,7 +63,7 @@ def show() -> None:
     # Cargar DataFrames de las tablas
     table_dfs = {}
     for name in table_names:
-        df, _ = fetch_table_csv(name)
+        df, _ = fetch_table_csv("silver", name)
         if df is not None:
             table_dfs[name] = df
     
@@ -200,7 +170,8 @@ def show() -> None:
     # Mostrar tablas Gold existentes
     st.subheader("Tablas Gold existentes")
     
-    gold_tables = fetch_gold_tables() or st.session_state.get("gold_tables", [])
+    gold_tables, _ = fetch("gold", "tables")
+    gold_tables = gold_tables or st.session_state.get("gold_tables", [])
     
     if not gold_tables:
         st.caption("No hay tablas Gold creadas aún")
