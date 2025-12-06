@@ -36,6 +36,31 @@ def show_table_detail(table_name: str, df: pd.DataFrame) -> None:
         render_table_detail(df, table_name, is_mock=True)
 
 
+def render_table_selector(
+    label: str,
+    options: list[str],
+    table_dfs: dict[str, pd.DataFrame],
+    key_prefix: str,
+) -> tuple[str | None, str | None]:
+    """Render a table selector with key column selection and detail button.
+    
+    Returns:
+        Tuple of (selected_table, selected_key_column)
+    """
+    st.markdown(f"**{label}**")
+    table = st.selectbox("Tabla:", options, key=f"{key_prefix}_table_select")
+    key_col = None
+    
+    if table and table in table_dfs:
+        df = table_dfs[table]
+        key_col = st.selectbox("Columna clave:", df.columns.tolist(), key=f"{key_prefix}_key_select")
+        
+        if st.button("Ver detalles", key=f"btn_ver_{key_prefix}", use_container_width=True, icon=":material/visibility:"):
+            show_table_detail(table, df)
+    
+    return table, key_col
+
+
 def show() -> None:
     """Render the integration (Gold) workspace."""
 
@@ -72,31 +97,15 @@ def show() -> None:
     col_left, col_join, col_right = st.columns([2, 1, 2])
     
     with col_left:
-        st.markdown("**Tabla Izquierda**")
-        left_table = st.selectbox("Tabla:", table_names, key="left_table_select")
-        
-        if left_table and left_table in table_dfs:
-            left_df = table_dfs[left_table]
-            left_key = st.selectbox("Columna clave:", left_df.columns.tolist(), key="left_key_select")
-            
-            if st.button("Ver detalles", key="btn_ver_left", use_container_width=True, icon=":material/visibility:"):
-                show_table_detail(left_table, left_df)
+        left_table, left_key = render_table_selector("Tabla Izquierda", table_names, table_dfs, "left")
     
     with col_join:
         st.markdown("**Tipo de Join**")
         join_type = st.selectbox("Tipo:", JOIN_TYPES, key="join_type_select")
     
     with col_right:
-        st.markdown("**Tabla Derecha**")
         right_options = [t for t in table_names if t != left_table]
-        right_table = st.selectbox("Tabla:", right_options, key="right_table_select")
-        
-        if right_table and right_table in table_dfs:
-            right_df = table_dfs[right_table]
-            right_key = st.selectbox("Columna clave:", right_df.columns.tolist(), key="right_key_select")
-            
-            if st.button("Ver detalles", key="btn_ver_right", use_container_width=True, icon=":material/visibility:"):
-                show_table_detail(right_table, right_df)
+        right_table, right_key = render_table_selector("Tabla Derecha", right_options, table_dfs, "right")
     
     st.divider()
     
@@ -113,14 +122,6 @@ def show() -> None:
     
     # Preview del resultado
     st.subheader("Preview del Join")
-    
-    # Obtener valores directamente de session_state
-    left_table = st.session_state.get("left_table_select")
-    right_table = st.session_state.get("right_table_select")
-    left_key = st.session_state.get("left_key_select")
-    right_key = st.session_state.get("right_key_select")
-    join_type = st.session_state.get("join_type_select", "inner")
-    output_name = st.session_state.get("output_name_input", "joined_table")
     
     if all([left_table, right_table, left_key, right_key]):
         left_df = table_dfs.get(left_table)
