@@ -13,8 +13,8 @@ def generate_engine() -> Engine:
     """Create a SQLAlchemy engine from environment variables."""
     host = os.getenv("POSTGRES_HOST", "localhost")
     port = os.getenv("POSTGRES_PORT", "5432")
-    user = os.getenv("POSTGRES_USER", "postgres")
-    password = os.getenv("POSTGRES_PASSWORD", "postgres")
+    user = os.getenv("POSTGRES_USER", "etl_user")
+    password = os.getenv("POSTGRES_PASSWORD", "etl_password")
     db = os.getenv("POSTGRES_DB", "etl_studio")
 
     url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
