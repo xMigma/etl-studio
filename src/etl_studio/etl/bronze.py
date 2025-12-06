@@ -1,49 +1,34 @@
-"""Bronze layer ingestion helpers."""
+"""Bronze layer ETL operations."""
 
 from __future__ import annotations
 
+import io
 import io
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import requests
 
-from etl_studio.app.mock_data import MOCK_TABLES, get_mock_csv
-from etl_studio.config import API_BASE_URL
+from etl_studio.postgres.bronze import get_table_content_db, to_bronze_db, get_table_names_db, delete_table_db
 
 
-def fetch_tables() -> tuple[list, bool]:
-    """Fetch tables from API, fallback to mock data on failure."""
-    try:
-        response = requests.get(f"{API_BASE_URL}/bronze/tables", timeout=5)
-        if response.status_code == 200:
-            return response.json(), False
-    except requests.exceptions.RequestException:
-        pass
-    return MOCK_TABLES, True
+def load_csv_to_bronze(filename: str, content: bytes) -> None:
+    """Parse CSV and load to bronze layer."""
+    df = pd.read_csv(io.BytesIO(content))
+    to_bronze_db(filename, df)
 
+def get_bronze_table_names() -> list[dict]:
+    """Get all bronze table names."""
+    table_names = get_table_names_db()
+    return [{"name": name} for name in table_names]
 
-def fetch_table_csv(table_name: str) -> tuple[pd.DataFrame | None, bool]:
-    """Fetch table CSV from API, fallback to mock CSV on failure."""
-    try:
-        response = requests.get(f"{API_BASE_URL}/bronze/tables/{table_name}", timeout=5)
-        if response.status_code == 200:
-            return pd.read_csv(io.StringIO(response.text)), False
-    except requests.exceptions.RequestException:
-        pass
-    
-    mock_csv = get_mock_csv(table_name)
-    if mock_csv:
-        return pd.read_csv(io.StringIO(mock_csv)), True
-    return None, True
+def get_table_content(table_name: str, limit: int | None = None) -> str:
+    """Get content of a specific table as CSV string."""
+    df = get_table_content_db(table_name)
+    if limit:
+        df = df.head(limit)
+    return df.to_csv(index=False)
 
-
-def load_csv_to_bronze(file_path: str | Path) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Load a raw CSV file into the bronze zone and capture metadata."""
-
-    # TODO: Implement real ingestion logic (validation, persistence, metadata capture).
-    df = pd.DataFrame()
-    metadata = {"rows": len(df), "columns": list(df.columns), "source": str(file_path)}
-    print(f"[Bronze] Ingest placeholder for {file_path}")
-    return df, metadata
+def delete_table(table_name: str) -> bool:
+    """Delete a specific table from the bronze layer."""
+    return delete_table_db(table_name)

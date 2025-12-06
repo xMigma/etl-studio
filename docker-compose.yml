@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_USER: etl_user
       POSTGRES_PASSWORD: etl_password
-      POSTGRES_DB: etl_database
+      POSTGRES_DB: etl_studio
     ports:
       - "5432:5432"
     volumes:
@@ -15,7 +15,7 @@ services:
     networks:
       - etl-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U etl_user -d etl_database"]
+      test: ["CMD-SHELL", "pg_isready -U etl_user -d etl_studio"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,18 +23,41 @@ services:
   init-db:
     build:
       context: .
-      dockerfile: src/postgres/Dockerfile
+      dockerfile: src/etl_studio/postgres/Dockerfile
     container_name: etl-studio-init
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_USER: etl_user
       POSTGRES_PASSWORD: etl_password
-      POSTGRES_DB: etl_database
+      POSTGRES_DB: etl_studio
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - etl-network
+
+  api:
+    build:
+      context: .
+      dockerfile: src/etl_studio/api/Dockerfile
+    container_name: etl-studio-api
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: etl_user
+      POSTGRES_PASSWORD: etl_password
+      POSTGRES_DB: etl_studio
+    ports:
+      - "80:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      init-db:
+        condition: service_completed_successfully
+    networks:
+      - etl-network
+    volumes:
+      - ./src:/app/src
 
 volumes:
   postgres_data:
