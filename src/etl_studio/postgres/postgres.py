@@ -28,3 +28,9 @@ def generate_engine() -> Engine:
 def get_engine() -> Engine:
     """Return a singleton SQLAlchemy engine."""
     return generate_engine()
+
+
+def clean_table_name(table_name: str) -> str:
+    """Adapt the name of the table to a valid SQL identifier."""
+    table_name = table_name.replace(".csv", "").lower()
+    return "".join(c if c.isalnum() or c == "_" else "_" for c in table_name)
