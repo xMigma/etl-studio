@@ -12,6 +12,7 @@ client = None
 engine = None
 schema_text = None
 
+# Inicializa el agente, aqui esta el create engine
 def inicializar():
     global client, engine, schema_text
     
@@ -115,6 +116,15 @@ def generar_sql(pregunta):
         return "", f"Error al generar SQL: {str(e)}"
 
 def ejecutar_sql(sql):
+    bannedWords = ["DROP","TRUNCATE","ALTER", "CREATE"]
+    is_dangerous = False
+
+    if any(word in sql for word in bannedWords):
+        is_dangerous = True
+
+    if (is_dangerous):
+        return pd.DataFrame(), True, None
+
     try:
         with engine.connect() as conn:
             result = conn.execute(text(sql))
@@ -123,13 +133,28 @@ def ejecutar_sql(sql):
                 columns = result.keys()
                 rows = result.fetchall()
                 data = [dict(zip(columns, row)) for row in rows]
-                return pd.DataFrame(data), None
+                return pd.DataFrame(data), False, None
             else:
-                conn.commit()
-                return pd.DataFrame([{"filas_afectadas": result.rowcount}]), None
-                
+                with engine.connect() as conn:
+                    conn.commit()
+                    return pd.DataFrame([{"filas_afectadas": result.rowcount}]), False, None
+
     except Exception as e:
-        return pd.DataFrame(), f"Error al ejecutar SQL: {str(e)}"
+        return pd.DataFrame(), False, f"Error al ejecutar SQL: {str(e)}"
+
+def ejecutar_force_sql(sql):
+    print("DEBUG - EJECUTANDO FORCE SQL")
+    try:
+        with engine.connect() as conn:
+            print("DEBUG - CONEXION A LA BBDD")
+            conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+            result = conn.execute(text(sql))
+            print("DEBUG - EJECUTANDO SQL")
+            filas_afectadas = result.rowcount if result.rowcount >= 0 else 0
+            return pd.DataFrame([{"filas_afectadas": filas_afectadas}]), False, None
+
+    except Exception as e:
+        return pd.DataFrame(), False, f"Error al ejecutar SQL: {str(e)}"
 
 def explicar_resultados(pregunta, sql, resultados):
     if resultados.empty:
@@ -190,7 +215,18 @@ def chat(pregunta):
             "tipo": "datos",
         }
     
-    resultados, error = ejecutar_sql(sql)
+    resultados, is_dangerous, error = ejecutar_sql(sql)
+
+    if is_dangerous:
+        return {
+            "pregunta" : pregunta,
+            "sql" : sql,
+            "resultados" : pd.DataFrame(),
+            "requiere_confirmacion" : True,
+            "respuesta" : "",
+            "tipo" : "datos",
+            "error" : error,
+        }
     
     if error:
         return {
@@ -211,7 +247,6 @@ def chat(pregunta):
         "tipo": "datos",
     }
 
-
 def generate_sql_from_prompt(prompt, catalog=None):
     if client is None:
         inicializar()
@@ -221,11 +256,10 @@ def generate_sql_from_prompt(prompt, catalog=None):
         return ""
     return sql
 
-
 def run_sql_query(sql, gold_path=None):
     if client is None:
         inicializar()
-    resultados, error = ejecutar_sql(sql)
+    resultados, _ , error = ejecutar_sql(sql)
     if error:
         print(f"Error: {error}")
         return pd.DataFrame()

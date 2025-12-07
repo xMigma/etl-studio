@@ -64,6 +64,7 @@ def show() -> None:
         with st.chat_message("assistant"):
             with st.spinner("Procesando..."):
                 response = chatbot_sql.chat(prompt)
+                print("DEBUG - RESPONSE:", response)
             
             # Si hay error
             if response["error"]:
@@ -73,6 +74,11 @@ def show() -> None:
                     "content": "Hubo un error al procesar tu consulta.",
                     "error": response["error"],
                 })
+            if response.get("requiere_confirmacion") == True:
+                print("DEBUG - IS DANGEROUS, entra al if correctamente")
+                st.session_state.sql_pendiente = response.get("sql")
+                st.session_state.pregunta_pendiente = response.get("pregunta")
+                st.session_state.requiere_confirmacion = True
             else:
                 # Mostrar respuesta en lenguaje natural
                 if response.get("respuesta"):
@@ -110,6 +116,44 @@ def show() -> None:
                         "resultados": response["resultados"],
                         "tipo": "datos",
                     })
+    if (st.session_state.get("requiere_confirmacion")):
+        st.warning("Operaciones de borrado o de modificaciones de tablas requieren confirmacion del usuario")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Confirmar"):
+                resultados, _, error = chatbot_sql.ejecutar_force_sql(st.session_state.get("sql_pendiente"))
+                if error:
+                    st.error(f"Error al ejecutar: {error}")
+                else:
+                    st.success("Operacion ejecutada correctamente")
+
+                    if not resultados.empty and "filas_afectadas" in resultados.columns:
+                        filas = resultados.iloc[0]["filas_afectadas"]
+                        st.metric("Filas afectadas", filas)
+                    st.session_state.messages.append({
+                        "role" : "assistant",
+                        "content" : f"Operacion ejecutada {st.session_state.get('pregunta_pendiente')}",
+                        "sql" : st.session_state.get("sql_pendiente"),
+                        "resultados" : resultados,
+                    })
+                del st.session_state.requiere_confirmacion
+                del st.session_state.sql_pendiente
+                del st.session_state.pregunta_pendiente
+
+                st.rerun()
+        with col2:
+            if st.button("Cancelar"):
+                st.info("Operacion cancelada por el usuario")
+                st.session_state.messages.append({
+                    "role" : "assistant",
+                    "content" : "Operacion cancelada por el usuario"
+                })
+
+                del st.session_state.requiere_confirmacion
+                del st.session_state.sql_pendiente
+                del st.session_state.pregunta_pendiente
+
+                st.rerun()
     
     # Clear chat button
     if st.session_state.messages:

@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from etl_studio.ai import chatbot_sql
+from src.etl_studio.ai import chatbot_sql
 
 app = FastAPI(title="SQL Chatbot API")
 
