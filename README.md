@@ -1,5 +1,7 @@
 # ETL Studio
 
+[![Tests](https://github.com/xMigma/etl-studio/actions/workflows/tests.yml/badge.svg)](https://github.com/xMigma/etl-studio/actions/workflows/tests.yml)
+
 Lightweight Streamlit skeleton for a collaborative data platform. This repo only
 contains scaffolding so each team member can focus on their layer (ETL, ML, or
 UX) without stepping on each other's toes.
