@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import io
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -22,7 +22,7 @@ def get_bronze_table_names() -> list[dict]:
     table_names = get_table_names_db()
     return [{"name": name} for name in table_names]
 
-def get_table_content(table_name: str, limit: int | None = None) -> str:
+def get_table_content(table_name: str, limit: Optional[int] = None) -> str:
     """Get content of a specific table as CSV string."""
     df = get_table_content_db(table_name)
     if limit:

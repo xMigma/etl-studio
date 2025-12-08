@@ -39,7 +39,7 @@ def render_table_selector(
     options: list[str],
     table_dfs: dict[str, pd.DataFrame],
     key_prefix: str,
-) -> tuple[str | None, str | None]:
+) -> tuple[Optional[str], Optional[str]]:
     """Render a table selector with key column selection and detail button.
     
     Returns:

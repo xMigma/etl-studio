@@ -134,7 +134,7 @@ def render_quick_detections(df: pd.DataFrame) -> None:
         render_high_cardinality_check(df)
 
 
-def render_table_detail(df: pd.DataFrame | None, table_name: str, is_mock: bool = False) -> None:
+def render_table_detail(df: Optional[pd.DataFrame], table_name: str, is_mock: bool = False) -> None:
     """Render full table detail view with all analysis components.
     
     Args:

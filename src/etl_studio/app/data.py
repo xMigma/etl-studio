@@ -44,7 +44,7 @@ def post(layer: Layer, resource: str, payload: dict, timeout: int = 10) -> tuple
     return None, False
 
 
-def fetch_table_csv(layer: Layer, table_name: str) -> tuple[pd.DataFrame | None, bool]:
+def fetch_table_csv(layer: Layer, table_name: str) -> tuple[Optional[pd.DataFrame], bool]:
     """Fetch table CSV from a layer. Falls back to mock CSV if API unavailable."""
     try:
         response = requests.get(f"{API_BASE_URL}/{layer}/tables/{table_name}", timeout=5)

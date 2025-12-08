@@ -1,7 +1,7 @@
 """Mock data for development and testing when API is unavailable."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -26,7 +26,7 @@ MOCK_RULES = {
 JOIN_TYPES = ["inner", "left"]
 
 
-def get_mock_csv(table_name: str) -> str | None:
+def get_mock_csv(table_name: str) -> Optional[str]:
     """Lee el CSV mock desde data/bronze/."""
     csv_path = BRONZE_PATH / f"{table_name}.csv"
     if csv_path.exists():
