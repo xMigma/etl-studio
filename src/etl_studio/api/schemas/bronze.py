@@ -8,3 +8,4 @@ class BronzeUploadResponse(BaseModel):
 
 class BronzeTableName(BaseModel):
     name: str
+    rows: int

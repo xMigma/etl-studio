@@ -17,7 +17,6 @@ setup_page("Bronze · ETL Studio")
 def show_table_detail(table_name: str) -> None:
     """Display table details in a dialog."""
     show_table_detail_dialog(table_name, layer="bronze")
-    
 
 
 def show() -> None:
