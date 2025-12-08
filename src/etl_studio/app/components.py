@@ -223,3 +223,28 @@ def show_table_detail_dialog(
     _, main_col, _ = st.columns([0.5, 9, 0.5])
     with main_col:
         render_table_detail(df, table_name, is_mock)
+
+
+def show_confirm_delete_dialog(table_name: str, layer: "Layer") -> None:
+    """Display confirmation dialog for table deletion.
+    
+    Args:
+        table_name: Name of the table to delete
+        layer: Layer from which to delete the table
+    """
+    from etl_studio.app.data import delete
+    
+    st.warning(f"¿Estás seguro de que deseas eliminar la tabla **{table_name}**?")
+    st.caption("Esta acción no se puede deshacer.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Cancelar", use_container_width=True):
+            st.rerun()
+    with col2:
+        if st.button("Eliminar", type="primary", use_container_width=True):
+            success, message = delete(layer, "tables", table_name)
+            if success:
+                st.rerun()
+            else:
+                st.error(message)

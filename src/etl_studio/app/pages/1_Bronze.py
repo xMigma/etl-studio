@@ -5,8 +5,8 @@ from __future__ import annotations
 import streamlit as st
 
 from etl_studio.app import setup_page
-from etl_studio.app.components import show_table_detail_dialog
-from etl_studio.app.data import fetch, delete, post
+from etl_studio.app.components import show_table_detail_dialog, show_confirm_delete_dialog
+from etl_studio.app.data import fetch, post
 
 setup_page("Bronze · ETL Studio")
 
@@ -15,6 +15,12 @@ setup_page("Bronze · ETL Studio")
 def show_table_detail(table_name: str) -> None:
     """Display table details in a dialog."""
     show_table_detail_dialog(table_name, layer="bronze")
+
+
+@st.dialog("Confirmar eliminación")
+def confirm_delete(table_name: str) -> None:
+    """Display confirmation dialog for table deletion."""
+    show_confirm_delete_dialog(table_name, layer="bronze")
 
 
 def show() -> None:
@@ -69,13 +75,8 @@ def show() -> None:
                         if st.button("Ver", key=f"btn_ver_{table['name']}", use_container_width=True):
                             show_table_detail(table['name'])
                     with col4:
-                        if st.button("Eliminar", key=f"btn_del_{table['name']}", use_container_width=True, disabled=is_mock, type="secondary"):
-                            success, message = delete("bronze", "tables", table['name'])
-                            if success:
-                                st.success(message)
-                                st.rerun()
-                            else:
-                                st.error(message)
+                        if st.button("Eliminar", key=f"btn_del_{table['name']}", use_container_width=True, disabled=is_mock, type="primary"):
+                            confirm_delete(table['name'])
     
     st.divider()
     
