@@ -33,11 +33,23 @@ def fetch(layer: Layer, resource: Resource) -> tuple[Any, bool]:
     return MOCK_DATA.get(resource), True
 
 
-def post(layer: Layer, resource: str, payload: dict, timeout: int = 10) -> tuple[Any, bool]:
-    """POST to a layer endpoint. Returns (response_json, success)."""
+def post(
+    layer: Layer, 
+    resource: str, 
+    payload: Optional[dict] = None, 
+    files: Optional[list[tuple[str, bytes]]] = None,
+    timeout: int = 30
+) -> tuple[Any, bool]:
+    """POST to a layer endpoint. Can send JSON payload or files. Returns (response_json, success)."""
     try:
-        response = requests.post(f"{API_BASE_URL}/{layer}/{resource}", json=payload, timeout=timeout)
-        if response.status_code == 200:
+        kwargs: dict[str, Any] = {"timeout": timeout}
+        if files:
+            kwargs["files"] = [("files", file_data) for file_data in files]
+        elif payload:
+            kwargs["json"] = payload
+        
+        response = requests.post(f"{API_BASE_URL}/{layer}/{resource}", **kwargs)
+        if response.status_code == 201:
             return response.json(), True
     except requests.exceptions.RequestException:
         pass

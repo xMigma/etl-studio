@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import requests
 import streamlit as st
 
 from etl_studio.app import setup_page
 from etl_studio.app.components import show_table_detail_dialog
-from etl_studio.app.data import fetch, delete
-from etl_studio.config import API_BASE_URL
+from etl_studio.app.data import fetch, delete, post
 
 setup_page("Bronze · ETL Studio")
 
@@ -33,14 +31,11 @@ def show() -> None:
     
     if uploaded_files:
         files = [(file.name, file.getvalue()) for file in uploaded_files]
-        try:
-            response = requests.post(f"{API_BASE_URL}/bronze/upload", files=[("files", f) for f in files], timeout=30)
-            if response.status_code == 200:
-                st.success("Archivos subidos e ingeridos con éxito.")
-                st.rerun()
-            else:
-                st.error("Error al subir los archivos.")
-        except requests.exceptions.RequestException:
+        _, success = post("bronze", "upload", files=files, timeout=30)
+        if success:
+            st.success("Archivos subidos e ingeridos con éxito.")
+            st.rerun()
+        else:
             st.warning("API no disponible. Los archivos no se pudieron subir.")
     
     st.divider()
