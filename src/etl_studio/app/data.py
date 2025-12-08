@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 import pandas as pd
 import requests
@@ -44,10 +44,10 @@ def post(layer: Layer, resource: str, payload: dict, timeout: int = 10) -> tuple
     return None, False
 
 
-def fetch_table_csv(layer: Layer, table_name: str) -> tuple[Optional[pd.DataFrame], bool]:
+def fetch_table_csv(layer: Layer, table_name: str, preview: bool = False) -> tuple[Optional[pd.DataFrame], bool]:
     """Fetch table CSV from a layer. Falls back to mock CSV if API unavailable."""
     try:
-        response = requests.get(f"{API_BASE_URL}/{layer}/tables/{table_name}", timeout=5)
+        response = requests.get(f"{API_BASE_URL}/{layer}/tables/{table_name}?preview={str(preview).lower()}", timeout=5)
         if response.status_code == 200:
             return pd.read_csv(io.StringIO(response.text)), False
     except requests.exceptions.RequestException:
