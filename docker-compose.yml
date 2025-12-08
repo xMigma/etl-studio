@@ -1,6 +1,14 @@
 version: '3.8'
 
 services:
+  base:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    image: etl-studio-base:latest
+    container_name: etl-studio-base
+    command: ["true"] 
+
   postgres:
     image: postgres:15
     container_name: etl-studio-postgres
@@ -58,6 +66,33 @@ services:
       - etl-network
     volumes:
       - ./src:/app/src
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: src/etl_studio/app/Dockerfile
+    container_name: etl-studio-streamlit
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: etl_user
+      POSTGRES_PASSWORD: etl_password
+      POSTGRES_DB: etl_studio
+      API_BASE_URL: http://api:80
+    ports:
+      - "8501:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      init-db:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
+    networks:
+      - etl-network
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
 
 volumes:
   postgres_data:
