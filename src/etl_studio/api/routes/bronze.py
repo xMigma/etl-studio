@@ -63,7 +63,7 @@ def list_bronze_tables():
 def download_table_csv(table_name: str, preview: bool = False):
     """Download content of a specific bronze table as CSV file."""
     try:
-        csv_content = get_table_content(table_name, limit=10 if preview else None)
+        csv_content = get_table_content(table_name, limit=300 if preview else None)
         
         headers = {}
         if not preview:
