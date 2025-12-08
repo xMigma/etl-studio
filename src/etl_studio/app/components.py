@@ -2,13 +2,58 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import pandas as pd
 import streamlit as st
 
 if TYPE_CHECKING:
     from etl_studio.app.data import Layer
+
+
+@st.cache_data
+def _compute_null_values(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute null values for a DataFrame (cached)."""
+    nulls = df.isnull().sum().reset_index()
+    nulls.columns = ["Columna", "Nulos"]
+    return nulls
+
+
+@st.cache_data
+def _compute_data_types(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute data types for a DataFrame (cached)."""
+    dtypes_df = df.dtypes.reset_index()
+    dtypes_df.columns = ["Columna", "Tipo"]
+    return dtypes_df
+
+
+@st.cache_data
+def _compute_basic_stats(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute basic statistics for a DataFrame (cached)."""
+    return df.describe()
+
+
+@st.cache_data
+def _compute_duplicates(df: pd.DataFrame) -> tuple[int, int]:
+    """Compute duplicate count (cached)."""
+    return df.duplicated().sum(), len(df)
+
+
+@st.cache_data
+def _compute_constant_cols(df: pd.DataFrame) -> list[str]:
+    """Compute constant columns (cached)."""
+    return [col for col in df.columns if df[col].nunique() <= 1]
+
+
+@st.cache_data
+def _compute_high_cardinality(df: pd.DataFrame) -> list[tuple[str, int, float]]:
+    """Compute high cardinality columns (cached)."""
+    high_cardinality = []
+    for col in df.columns:
+        unique_ratio = df[col].nunique() / len(df) if len(df) > 0 else 0
+        if unique_ratio > 0.9 and df[col].nunique() > 10:
+            high_cardinality.append((col, df[col].nunique(), unique_ratio))
+    return high_cardinality
 
 
 def render_table_metrics(df: pd.DataFrame) -> None:
@@ -23,8 +68,7 @@ def render_table_metrics(df: pd.DataFrame) -> None:
 def render_data_types(df: pd.DataFrame) -> None:
     """Render data types expander."""
     with st.expander("Tipos de datos"):
-        dtypes_df = df.dtypes.reset_index()
-        dtypes_df.columns = ["Columna", "Tipo"]
+        dtypes_df = _compute_data_types(df)
         st.dataframe(dtypes_df, use_container_width=True, hide_index=True)
 
 
@@ -37,15 +81,15 @@ def render_data_preview(df: pd.DataFrame, expanded: bool = True, height: int = 4
 def render_null_values(df: pd.DataFrame) -> None:
     """Render null values expander."""
     with st.expander("Valores nulos"):
-        nulls = df.isnull().sum().reset_index()
-        nulls.columns = ["Columna", "Nulos"]
+        nulls = _compute_null_values(df)
         st.dataframe(nulls, use_container_width=True, hide_index=True)
 
 
 def render_basic_stats(df: pd.DataFrame) -> None:
     """Render basic statistics expander."""
     with st.expander("Estadísticas básicas"):
-        st.dataframe(df.describe(), use_container_width=True)
+        stats = _compute_basic_stats(df)
+        st.dataframe(stats, use_container_width=True)
 
 
 def render_distributions(df: pd.DataFrame, key_prefix: str = "dist") -> None:
@@ -82,8 +126,7 @@ def render_distributions(df: pd.DataFrame, key_prefix: str = "dist") -> None:
 def render_duplicates_check(df: pd.DataFrame) -> None:
     """Render duplicate rows detection."""
     st.write("**Filas duplicadas**")
-    duplicates = df.duplicated().sum()
-    total_rows = len(df)
+    duplicates, total_rows = _compute_duplicates(df)
     if duplicates > 0:
         st.warning(f":material/warning: {duplicates:,} filas duplicadas ({duplicates/total_rows*100:.1f}%)")
     else:
@@ -93,7 +136,7 @@ def render_duplicates_check(df: pd.DataFrame) -> None:
 def render_constant_cols_check(df: pd.DataFrame) -> None:
     """Render constant columns detection."""
     st.write("**Columnas constantes**")
-    constant_cols = [col for col in df.columns if df[col].nunique() <= 1]
+    constant_cols = _compute_constant_cols(df)
     if constant_cols:
         st.warning(f":material/warning: {len(constant_cols)} columna(s) constante(s):")
         for col in constant_cols:
@@ -105,11 +148,7 @@ def render_constant_cols_check(df: pd.DataFrame) -> None:
 def render_high_cardinality_check(df: pd.DataFrame) -> None:
     """Render high cardinality columns detection."""
     st.write("**Columnas con alta cardinalidad**")
-    high_cardinality = []
-    for col in df.columns:
-        unique_ratio = df[col].nunique() / len(df) if len(df) > 0 else 0
-        if unique_ratio > 0.9 and df[col].nunique() > 10:
-            high_cardinality.append((col, df[col].nunique(), unique_ratio))
+    high_cardinality = _compute_high_cardinality(df)
     
     if high_cardinality:
         st.info(f":material/info: {len(high_cardinality)} columna(s) con alta cardinalidad (>90% valores únicos):")
