@@ -22,21 +22,28 @@ def show() -> None:
 
     st.header("Ingest · Bronze")
     
+    # Inicializar el contador de upload en session_state
+    if "upload_key" not in st.session_state:
+        st.session_state.upload_key = 0
+    
     st.subheader("Subir archivos")
     uploaded_files = st.file_uploader(
         "Arrastra o selecciona archivos CSV",
         type=["csv"],
-        accept_multiple_files=True
+        accept_multiple_files=True,
+        key=f"file_uploader_{st.session_state.upload_key}"
     )
     
     if uploaded_files:
-        files = [(file.name, file.getvalue()) for file in uploaded_files]
-        _, success = post("bronze", "upload", files=files, timeout=30)
-        if success:
-            st.success("Archivos subidos e ingeridos con éxito.")
+        st.info(f"{len(uploaded_files)} archivo(s) seleccionado(s). Revisa la selección y pulsa 'Subir archivos' para confirmar.")
+        if st.button("Subir archivos"):
+            files = [(file.name, file.getvalue()) for file in uploaded_files]
+            _, success = post("bronze", "upload", files=files, timeout=30)
+            if not success:
+                st.warning("API no disponible. Los archivos no se pudieron subir.")
+            # Incrementar el key para forzar un nuevo widget limpio
+            st.session_state.upload_key += 1
             st.rerun()
-        else:
-            st.warning("API no disponible. Los archivos no se pudieron subir.")
     
     st.divider()
     
