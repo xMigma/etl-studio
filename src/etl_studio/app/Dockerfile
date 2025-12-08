@@ -1,17 +1,7 @@
-FROM python:3.9-slim
+FROM etl-studio-base:latest
 
-WORKDIR /app
-
-# Solo instalar curl para el healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY pyproject.toml setup.py ./
-COPY src/ ./src/
+# Copiar datos de bronze para desarrollo
 COPY data/ ./data/
-
-RUN pip3 install -e .
 
 EXPOSE 8501
 

@@ -1,0 +1,18 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Instalar dependencias del sistema necesarias para psycopg2 y herramientas básicas
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev \
+    gcc \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar archivos de configuración del proyecto
+COPY pyproject.toml setup.py ./
+COPY src/ ./src/
+
+# Instalar el paquete en modo editable
+RUN pip install --upgrade pip && \
+    pip install -e .
