@@ -1,6 +1,7 @@
 # ETL Studio
 
 [![Tests](https://github.com/xMigma/etl-studio/actions/workflows/tests.yml/badge.svg)](https://github.com/xMigma/etl-studio/actions/workflows/tests.yml)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/xMigma/etl-studio)
 
 Lightweight Streamlit skeleton for a collaborative data platform. This repo only
 contains scaffolding so each team member can focus on their layer (ETL, ML, or
