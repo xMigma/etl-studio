@@ -9,8 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY pyproject.toml setup.py ./
 COPY src/ ./src/
+COPY data/ ./data/
 
-RUN pip3 install --no-cache-dir -e .
+RUN pip3 install -e .
 
 EXPOSE 8501
 
