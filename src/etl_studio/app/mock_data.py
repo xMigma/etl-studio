@@ -1,6 +1,7 @@
 """Mock data for development and testing when API is unavailable."""
 
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -20,6 +21,9 @@ MOCK_RULES = {
     "lowercase": {"name": "Lowercase", "description": "Convertir a minúsculas", "requires_value": False},
     "cast_date": {"name": "Cast Date", "description": "Convertir a fecha", "requires_value": False},
 }
+
+# Tipos de join disponibles para Gold layer
+JOIN_TYPES = ["inner", "left"]
 
 
 def get_mock_csv(table_name: str) -> str | None:
@@ -53,4 +57,26 @@ def apply_mock_rules(df: pd.DataFrame, rules: list[dict]) -> pd.DataFrame:
     result = df.copy()
     for rule in rules:
         result = apply_mock_rule(result, rule["rule_id"], rule["column"], rule["value"])
+    return result
+
+
+def apply_mock_join(left_df: pd.DataFrame, right_df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
+    """Apply a join between two dataframes (mock/fallback)."""
+    left_key = config.get("left_key")
+    right_key = config.get("right_key")
+    join_type = config.get("join_type", "inner")
+    
+    if not left_key or not right_key:
+        raise ValueError("Se requieren las columnas clave para el join")
+    
+    # Realizar el join
+    result = pd.merge(
+        left_df,
+        right_df,
+        left_on=left_key,
+        right_on=right_key,
+        how=join_type,
+        suffixes=("_left", "_right")
+    )
+    
     return result

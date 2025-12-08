@@ -3,58 +3,22 @@
 from __future__ import annotations
 
 import pandas as pd
-import requests
 import streamlit as st
 
 from etl_studio.app import setup_page
-from etl_studio.app.components import render_table_detail
-from etl_studio.app.mock_data import MOCK_RULES, apply_mock_rules
-from etl_studio.config import API_BASE_URL
-from etl_studio.etl.bronze import fetch_tables, fetch_table_csv
+from etl_studio.app.components import show_table_detail_dialog
+from etl_studio.app.data import fetch, fetch_table_csv, post
+from etl_studio.app.mock_data import apply_mock_rules
 
 setup_page("Silver · ETL Studio")
 
 
-def fetch_rules() -> tuple[dict, bool]:
-    """Fetch cleaning rules from API, fallback to mock on failure."""
-    try:
-        response = requests.get(f"{API_BASE_URL}/cleaning/rules", timeout=5)
-        if response.status_code == 200:
-            return response.json(), False
-    except requests.exceptions.RequestException:
-        pass
-    return MOCK_RULES, True
-
-
 def fetch_preview(table: str, rules: list[dict], df: pd.DataFrame) -> pd.DataFrame:
     """Fetch preview from API, fallback to local processing on failure."""
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/cleaning/preview",
-            json={"table": table, "rules": rules},
-            timeout=10
-        )
-        if response.status_code == 200:
-            data = response.json()
-            return pd.DataFrame(data["after"])
-    except requests.exceptions.RequestException:
-        pass
-    
-    # Fallback: procesar localmente
+    data, success = post("silver", "preview", {"table": table, "rules": rules})
+    if success and data:
+        return pd.DataFrame(data["after"])
     return apply_mock_rules(df, rules)
-
-
-def apply_changes(table: str, rules: list[dict]) -> bool:
-    """Apply changes via API, return success status."""
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/cleaning/apply",
-            json={"table": table, "rules": rules},
-            timeout=10
-        )
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
-        return False
 
 
 def get_applied_rules(table_name: str) -> list[dict]:
@@ -99,12 +63,7 @@ def clear_rules_for_table(table_name: str) -> None:
 @st.dialog("Detalle de Tabla", width="large")
 def show_table_detail(table_name: str) -> None:
     """Display table details in a dialog."""
-    with st.spinner(f"Cargando datos de {table_name}..."):
-        df, is_mock = fetch_table_csv(table_name)
-   
-    _, main_col, _ = st.columns([0.5, 9, 0.5])
-    with main_col:
-        render_table_detail(df, table_name, is_mock)
+    show_table_detail_dialog(table_name, layer="silver")
 
 
 def show() -> None:
@@ -119,8 +78,8 @@ def show() -> None:
     if "applied_rules" not in st.session_state:
         st.session_state.applied_rules = {}
     
-    tables, tables_mock = fetch_tables()
-    available_rules, rules_mock = fetch_rules()
+    tables, tables_mock = fetch("silver", "tables")
+    available_rules, rules_mock = fetch("silver", "rules")
     
     if tables_mock or rules_mock:
         st.info("Modo de prueba: API no disponible")
@@ -143,7 +102,7 @@ def show() -> None:
         return
     
     # Cargar datos de la tabla
-    df, _ = fetch_table_csv(selected_table)
+    df, _ = fetch_table_csv("silver", selected_table)
     if df is None:
         st.error("No se pudo cargar la tabla")
         return
@@ -231,7 +190,7 @@ def show() -> None:
     st.divider()
     
     if st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:"):
-        success = apply_changes(selected_table, applied_rules)
+        _, success = post("silver", "apply", {"table": selected_table, "rules": applied_rules})
         if success:
             st.success("Cambios guardados correctamente en la capa Silver")
         else:
