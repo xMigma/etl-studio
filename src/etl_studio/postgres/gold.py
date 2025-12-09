@@ -28,3 +28,28 @@ def save_table_db(table_name: str, data: list[dict]) -> None:
         if_exists="replace",
         index=False,
     )
+
+def get_table_names_db() -> list[dict]:
+    """Get all table names from Gold schema with row counts."""
+    engine = get_engine()
+    
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'gold'
+            ORDER BY table_name
+        """)
+        )
+        
+        tables = []
+        for row in result:
+            table_name = row[0]
+            count_result = conn.execute(
+                text(f'SELECT COUNT(*) FROM gold."{table_name}"')
+            )
+            row_count = count_result.scalar()
+            tables.append({"name": table_name, "rows": row_count})
+        
+        return tables
