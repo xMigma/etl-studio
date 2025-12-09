@@ -285,3 +285,32 @@ def train_model(
     )
     
     return metrics
+
+
+def predict(df: pd.DataFrame, model_path: str) -> pd.DataFrame:
+    """Run predictions using a stored model artifact.
+    
+    Args:
+        df: DataFrame with features
+        model_path: Path to pickled model
+        
+    Returns:
+        DataFrame with predictions added
+    """
+    # Load model info
+    with open(model_path, "rb") as f:
+        model_info = pickle.load(f)
+    
+    model = model_info["model"]
+    label_encoder = model_info.get("label_encoder")
+    features = model_info["features"]
+    
+    # Select only the features used during training
+    X = df[features]
+    
+    # Predict
+    predictions = model.predict(X)
+ 
+    # Add predictions to dataframe
+    result = df.copy()
+    result["prediction"] = predictions
