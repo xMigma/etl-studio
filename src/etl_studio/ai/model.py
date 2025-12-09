@@ -328,3 +328,16 @@ def predict(df: pd.DataFrame, model_path: str) -> pd.DataFrame:
             result[f"proba_{class_label}"] = probas[:, i]
     
     return result
+
+def load_model_info(model_path: str) -> dict[str, Any]:
+    """Load model metadata without the model object."""
+    with open(model_path, "rb") as f:
+        model_info = pickle.load(f)
+    
+    return {
+        "model_name": model_info["model_name"],
+        "task_type": model_info["task_type"],
+        "target": model_info["target"],
+        "features": model_info["features"],
+        "params": model_info["params"],
+    }
