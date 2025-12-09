@@ -137,3 +137,151 @@ REGRESSION_MODELS = {
         },
     },
 }
+
+
+def get_available_models(task_type: str) -> dict:
+    """Get available models for a task type."""
+    if task_type == "classification":
+        return CLASSIFICATION_MODELS
+    elif task_type == "regression":
+        return REGRESSION_MODELS
+    else:
+        raise ValueError(f"Unknown task type: {task_type}")
+
+
+def train_model(
+    df: pd.DataFrame,
+    target_column: str,
+    model_name: str,
+    task_type: str,
+    params: Optional[dict[str, Any]] = None,
+    selected_features: Optional[list[str]] = None,
+    test_size: float = 0.2,
+    use_cross_validation: bool = True,
+) -> dict[str, Any]:
+    """Train a supervised model and return training metrics.
+    
+    Args:
+        df: DataFrame with features and target
+        target_column: Name of target column
+        model_name: Name of the model to use
+        task_type: 'classification' or 'regression'
+        params: Hyperparameters for the model
+        selected_features: List of features to use (if None, use all)
+        test_size: Proportion of data for testing
+        use_cross_validation: Whether to use cross-validation
+        
+    Returns:
+        Dictionary with training metrics and model info
+    """
+    if params is None:
+        params = {}
+    
+    # Get model class
+    models_dict = get_available_models(task_type)
+    if model_name not in models_dict:
+        raise ValueError(f"Unknown model: {model_name}")
+    
+    model_class = models_dict[model_name]["class"]
+    
+    # Prepare data
+    if selected_features:
+        X = df[selected_features]
+    else:
+        X = df.drop(columns=[target_column])
+    
+    y = df[target_column]
+    
+    # Handle categorical target for classification
+    label_encoder = None
+    if task_type == "classification" and y.dtype == "object":
+        label_encoder = LabelEncoder()
+        y = label_encoder.fit_transform(y)
+    
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=42
+    )
+    
+    # Train model
+    model = model_class(**params)
+    model.fit(X_train, y_train)
+    
+    # Predictions
+    y_pred = model.predict(X_test)
+    y_train_pred = model.predict(X_train)
+    
+    # Calculate metrics
+    metrics = {}
+    
+    if task_type == "classification":
+        metrics.update(
+            {
+                "accuracy_train": accuracy_score(y_train, y_train_pred),
+                "accuracy_test": accuracy_score(y_test, y_pred),
+                "precision": precision_score(y_test, y_pred, average="weighted", zero_division=0),
+                "recall": recall_score(y_test, y_pred, average="weighted", zero_division=0),
+                "f1_score": f1_score(y_test, y_pred, average="weighted", zero_division=0),
+                "confusion_matrix": confusion_matrix(y_test, y_pred).tolist(),
+            }
+        )
+    else:
+        metrics.update(
+            {
+                "mae_train": mean_absolute_error(y_train, y_train_pred),
+                "mae_test": mean_absolute_error(y_test, y_pred),
+                "mse_train": mean_squared_error(y_train, y_train_pred),
+                "mse_test": mean_squared_error(y_test, y_pred),
+                "rmse_train": np.sqrt(mean_squared_error(y_train, y_train_pred)),
+                "rmse_test": np.sqrt(mean_squared_error(y_test, y_pred)),
+                "r2_train": r2_score(y_train, y_train_pred),
+                "r2_test": r2_score(y_test, y_pred),
+            }
+        )
+    
+    # Cross-validation
+    if use_cross_validation:
+        scoring = "accuracy" if task_type == "classification" else "r2"
+        cv_scores = cross_val_score(model, X, y, cv=5, scoring=scoring)
+        metrics["cv_scores"] = cv_scores.tolist()
+        metrics["cv_mean"] = cv_scores.mean()
+        metrics["cv_std"] = cv_scores.std()
+    
+    # Feature importance (if available)
+    if hasattr(model, "feature_importances_"):
+        feature_importance = pd.DataFrame(
+            {"feature": X.columns, "importance": model.feature_importances_}
+        ).sort_values("importance", ascending=False)
+        metrics["feature_importance"] = feature_importance.to_dict(orient="records")
+    
+    # Save model
+    model_dir = Path("models")
+    model_dir.mkdir(exist_ok=True)
+    
+    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+    model_filename = f"{model_name.replace(' ', '_')}_{task_type}_{timestamp}.pkl"
+    model_path = model_dir / model_filename
+    
+    model_info = {
+        "model": model,
+        "label_encoder": label_encoder,
+        "features": X.columns.tolist(),
+        "target": target_column,
+        "task_type": task_type,
+        "model_name": model_name,
+        "params": params,
+    }
+    
+    with open(model_path, "wb") as f:
+        pickle.dump(model_info, f)
+    
+    metrics.update(
+        {
+            "model_path": str(model_path),
+            "train_samples": len(X_train),
+            "test_samples": len(X_test),
+            "features_used": X.columns.tolist(),
+        }
+    )
+    
+    return metrics
