@@ -33,3 +33,33 @@ from sklearn.metrics import (
 from sklearn.preprocessing import LabelEncoder
 
 
+# Configuración de modelos disponibles
+CLASSIFICATION_MODELS = {
+    "Random Forest": {
+        "class": RandomForestClassifier,
+        "params": {
+            "n_estimators": {"type": "slider", "min": 10, "max": 500, "default": 100},
+            "min_samples_leaf": {"type": "slider", "min": 1, "max": 20, "default": 1},
+        },
+    },
+    "Logistic Regression": {
+        "class": LogisticRegression,
+        "params": {
+        },
+    },
+    "Gradient Boosting": {
+        "class": GradientBoostingClassifier,
+        "params": {
+        },
+    },
+    "SVM": {
+        "class": SVC,
+        "params": {
+        },
+    },
+    "K-Nearest Neighbors": {
+        "class": KNeighborsClassifier,
+        "params": {
+        },
+    },
+}
