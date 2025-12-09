@@ -310,7 +310,21 @@ def predict(df: pd.DataFrame, model_path: str) -> pd.DataFrame:
     
     # Predict
     predictions = model.predict(X)
- 
+    
+    # Decode labels if necessary
+    if label_encoder is not None:
+        predictions = label_encoder.inverse_transform(predictions)
+    
     # Add predictions to dataframe
     result = df.copy()
     result["prediction"] = predictions
+    
+    # Add prediction probabilities for classification
+    if hasattr(model, "predict_proba"):
+        probas = model.predict_proba(X)
+        for i, class_label in enumerate(
+            label_encoder.classes_ if label_encoder else range(probas.shape[1])
+        ):
+            result[f"proba_{class_label}"] = probas[:, i]
+    
+    return result
