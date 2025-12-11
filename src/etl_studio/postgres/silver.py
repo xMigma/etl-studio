@@ -26,10 +26,13 @@ def get_table_from_bronze(table_name: str) -> pd.DataFrame:
     return pd.read_sql(query, engine, params={"table_name": cleaned_name})
 
 
-def save_table_to_silver(df: pd.DataFrame, table_name: str) -> None:
+def to_silver_db(df: pd.DataFrame, table_name: str) -> None:
     """Save a DataFrame to the silver schema."""
     cleaned_name = clean_table_name(table_name)
     engine = get_engine()
+    with engine.connect() as conn:
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS silver"))
+        conn.commit()
     
     df.to_sql(
         name=cleaned_name,

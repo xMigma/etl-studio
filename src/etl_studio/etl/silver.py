@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
+from etl_studio.postgres.silver import to_silver_db, get_preview_from_bronze, get_table_from_bronze
 
 def fillna(df: pd.DataFrame, column: str, value: Any) -> pd.DataFrame:
     """Fill null values in a specific column with the given value."""
@@ -62,12 +63,23 @@ def apply_operation(df: pd.DataFrame, operation: str, params: dict[str, Any]) ->
         raise ValueError(f"Unknown operation: {operation}")
 
 
-def dispatch_operations(df: pd.DataFrame, selected_operations: list[dict[str, Any]]) -> pd.DataFrame:
-    """Receive and apply the operations"""
+def dispatch_operations(
+    table_name: str,
+    selected_operations: list[dict[str, Any]],
+    preview: bool = True
+) -> pd.DataFrame:
+    """Get a table from bronze, apply cleaning operations, and optionally save to silver. """
+    if preview:
+        df = get_preview_from_bronze(table_name)
+    else:
+        df = get_table_from_bronze(table_name)
+    
     for op in selected_operations:
         operation = op["operation"]
         params = op.get("params", {})
         df = apply_operation(df, operation, params)
     
+    if not preview:
+        to_silver_db(df, table_name)
+    
     return df
-
