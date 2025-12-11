@@ -200,49 +200,83 @@ def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
         else:
             st.caption("No hay encodings aplicados")
     
-    # Preview section
+    # Preview section - Single column in real-time
     with col_preview:
-        st.markdown("##### Preview")
+        st.markdown("##### Preview Columna Seleccionada")
         
-        if st.session_state[encoding_key]:
-            # Apply encoding
+        if selected_col:
+            # Create temporary encoding config for preview
+            temp_config = {selected_col: "onehot" if encoding_type == "One-Hot Encoding" else "label"}
+            
             try:
-                df_encoded, encoders = model.apply_encoding(df, st.session_state[encoding_key])
+                # Apply encoding to preview
+                df_preview, _ = model.apply_encoding(df, temp_config)
                 
                 # Show comparison
                 tab_before, tab_after = st.tabs(["BEFORE", "AFTER"])
                 
                 with tab_before:
-                    cols_to_show = list(st.session_state[encoding_key].keys())[:3]
-                    st.dataframe(df[cols_to_show].head(10), use_container_width=True, height=300)
+                    st.dataframe(
+                        df[[selected_col]].head(15), 
+                        use_container_width=True, 
+                        height=300
+                    )
                 
                 with tab_after:
-                    # Show relevant columns after encoding
-                    cols_after = []
-                    for col in st.session_state[encoding_key].keys():
-                        if col in df_encoded.columns:
-                            cols_after.append(col)
-                        else:
-                            # One-hot encoded columns
-                            cols_after.extend([c for c in df_encoded.columns if c.startswith(f"{col}_")])
-                    
-                    cols_after = cols_after[:10]  # Limit to first 10 columns
-                    st.dataframe(df_encoded[cols_after].head(10), use_container_width=True, height=300)
-                
-                # Metrics
-                col_m1, col_m2 = st.columns(2)
-                with col_m1:
-                    st.metric("Columnas antes", len(df.columns))
-                with col_m2:
-                    st.metric("Columnas después", len(df_encoded.columns))
-                
-                return df_encoded
+                    # Show encoded column(s)
+                    if selected_col in df_preview.columns:
+                        # Label encoding - column still exists
+                        st.dataframe(
+                            df_preview[[selected_col]].head(15),
+                            use_container_width=True,
+                            height=300
+                        )
+                    else:
+                        # One-hot encoding - show all new columns
+                        encoded_cols = [c for c in df_preview.columns if c.startswith(f"{selected_col}_")]
+                        st.dataframe(
+                            df_preview[encoded_cols].head(15),
+                            use_container_width=True,
+                            height=300
+                        )
                 
             except Exception as e:
-                st.error(f"Error al aplicar encoding: {e}")
-                return df
+                st.error(f"Error en preview: {e}")
         else:
-            st.info("Añade encodings para ver el preview")
+            st.info("Selecciona una columna para ver el preview")
+    
+    # Full dataset preview with all encodings applied
+    st.divider()
+    
+    if st.session_state[encoding_key]:
+        st.markdown("##### Preview Dataset Completo con Encodings")
+        
+        try:
+            df_encoded, encoders = model.apply_encoding(df, st.session_state[encoding_key])
+            
+            # Metrics
+            col_m1, col_m2, col_m3 = st.columns(3)
+            with col_m1:
+                st.metric("Columnas originales", len(df.columns))
+            with col_m2:
+                st.metric("Columnas después encoding", len(df_encoded.columns))
+            with col_m3:
+                delta = len(df_encoded.columns) - len(df.columns)
+                st.metric("Diferencia", f"+{delta}" if delta > 0 else str(delta))
+            
+            # Full dataframe tabs
+            tab_original, tab_encoded = st.tabs(["DATASET ORIGINAL", "DATASET ENCODED"])
+            
+            with tab_original:
+                st.dataframe(df.head(20), use_container_width=True, height=400)
+            
+            with tab_encoded:
+                st.dataframe(df_encoded.head(20), use_container_width=True, height=400)
+            
+            return df_encoded
+            
+        except Exception as e:
+            st.error(f"Error al aplicar encodings: {e}")
             return df
     
     return df
@@ -320,6 +354,10 @@ def show() -> None:
     
     with col_target:
         target_column = st.selectbox("Variable objetivo (Target):", df.columns.tolist(), key="target_select")
+        
+        # Info sobre target categorico
+        if task_type == "classification" and df[target_column].dtype == "object":
+            st.info("ℹ️ Target categórico detectado. Se aplicará Label Encoding automáticamente durante el entrenamiento.")
     
     with col_features:
         available_features = [col for col in df.columns if col != target_column]
