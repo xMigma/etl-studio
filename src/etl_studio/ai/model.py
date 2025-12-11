@@ -152,18 +152,34 @@ def apply_encoding(
     df: pd.DataFrame,
     encoding_config: dict[str, str]
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
-
+    """Apply encoding transformations to categorical features.
+    
+    Args:
+        df: Original DataFrame
+        encoding_config: Dict mapping column names to encoding types ('onehot' or 'label')
+        
+    Returns:
+        Tuple of (encoded_df, encoders_dict) where encoders_dict contains the fitted encoders
+    """
     df_encoded = df.copy()
     encoders = {}
     
     for column, encoding_type in encoding_config.items():
         if column not in df.columns:
             continue
-
-        dummies = pd.get_dummies(df_encoded[column], prefix=column, drop_first=False)
-        df_encoded = pd.concat([df_encoded.drop(columns=[column]), dummies], axis=1)
-        encoders[column] = {"type": "onehot", "columns": dummies.columns.tolist()}
             
+        if encoding_type == "onehot":
+            # One-Hot Encoding
+            dummies = pd.get_dummies(df_encoded[column], prefix=column, drop_first=False)
+            df_encoded = pd.concat([df_encoded.drop(columns=[column]), dummies], axis=1)
+            encoders[column] = {"type": "onehot", "columns": dummies.columns.tolist()}
+            
+        elif encoding_type == "label":
+            # Label Encoding
+            le = LabelEncoder()
+            df_encoded[column] = le.fit_transform(df_encoded[column].astype(str))
+            encoders[column] = {"type": "label", "encoder": le, "classes": le.classes_.tolist()}
+    
     return df_encoded, encoders
 
 def get_categorical_columns(df: pd.DataFrame) -> list[str]:
