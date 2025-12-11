@@ -129,7 +129,7 @@ def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
         
     Returns:
         Encoded DataFrame (or original if no encoding applied)
-    """    
+    """
     st.subheader("Feature Encoding")
     
     # Initialize session state for encoding config
@@ -138,6 +138,10 @@ def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
         st.session_state[encoding_key] = {}
     
     categorical_cols = model.get_categorical_columns(df)
+    
+    if not categorical_cols:
+        st.info("✓ No hay columnas categóricas en el dataset")
+        return df
     
     st.write(f"**Columnas categóricas detectadas:** {len(categorical_cols)}")
     
@@ -166,11 +170,36 @@ def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
             unique_values = df[selected_col].nunique()
             st.caption(f"Valores únicos: {unique_values}")
             
+            if unique_values > 20:
+                st.warning(f"⚠️ Esta columna tiene {unique_values} valores únicos. One-Hot Encoding creará muchas columnas.")
+            
             # Add encoding button
             if st.button("Añadir Encoding", type="primary", key=f"add_enc_{table_name}"):
                 enc_type = "onehot" if encoding_type == "One-Hot Encoding" else "label"
                 st.session_state[encoding_key][selected_col] = enc_type
                 st.rerun()
+        
+        # Show applied encodings
+        st.divider()
+        st.markdown("##### Encodings Aplicados")
+        
+        if st.session_state[encoding_key]:
+            for col, enc_type in st.session_state[encoding_key].items():
+                col_enc, col_del = st.columns([4, 1])
+                with col_enc:
+                    enc_name = "One-Hot" if enc_type == "onehot" else "Label"
+                    st.text(f"{col}: {enc_name}")
+                with col_del:
+                    if st.button("", key=f"del_enc_{col}_{table_name}", help="Eliminar", icon=":material/delete:"):
+                        del st.session_state[encoding_key][col]
+                        st.rerun()
+            
+            if st.button("Limpiar todos", type="tertiary", use_container_width=True, key=f"clear_enc_{table_name}"):
+                st.session_state[encoding_key] = {}
+                st.rerun()
+        else:
+            st.caption("No hay encodings aplicados")
+    
     # Preview section
     with col_preview:
         st.markdown("##### Preview")
@@ -199,6 +228,13 @@ def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
                     
                     cols_after = cols_after[:10]  # Limit to first 10 columns
                     st.dataframe(df_encoded[cols_after].head(10), use_container_width=True, height=300)
+                
+                # Metrics
+                col_m1, col_m2 = st.columns(2)
+                with col_m1:
+                    st.metric("Columnas antes", len(df.columns))
+                with col_m2:
+                    st.metric("Columnas después", len(df_encoded.columns))
                 
                 return df_encoded
                 
