@@ -120,6 +120,52 @@ def plot_regression_results(y_test: list, y_pred: list) -> go.Figure:
     return fig
 
 
+def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
+    st.subheader("Feature Encoding")
+    
+    # Initialize session state for encoding config
+    encoding_key = f"encoding_config_{table_name}"
+    if encoding_key not in st.session_state:
+        st.session_state[encoding_key] = {}
+    
+    categorical_cols = model.get_categorical_columns(df)
+    
+    st.write(f"**Columnas categóricas detectadas:** {len(categorical_cols)}")
+    
+    # Encoding configuration
+    col_config, col_preview = st.columns([1, 1])
+    
+    with col_config:
+        st.markdown("##### Configurar Encoding")
+        
+        # Select column to encode
+        selected_col = st.selectbox(
+            "Selecciona columna:",
+            [""] + categorical_cols,
+            key=f"enc_col_select_{table_name}"
+        )
+        
+        if selected_col:
+            # Select encoding type
+            encoding_type = st.selectbox(
+                "Tipo de encoding:",
+                ["One-Hot Encoding", "Label Encoding"],
+                key=f"enc_type_select_{table_name}"
+            )
+            
+            # Show column info
+            unique_values = df[selected_col].nunique()
+            st.caption(f"Valores únicos: {unique_values}")
+            
+            # Add encoding button
+            if st.button("Añadir Encoding", type="primary", key=f"add_enc_{table_name}"):
+                enc_type = "onehot" if encoding_type == "One-Hot Encoding" else "label"
+                st.session_state[encoding_key][selected_col] = enc_type
+                st.rerun()
+    
+    return df
+
+
 def show() -> None:
     """Render the model training and inference workspace."""
     
@@ -144,20 +190,25 @@ def show() -> None:
     
     # Cargar datos
     with st.spinner("Cargando dataset..."):
-        df, _ = fetch_table_csv("gold", selected_table)
+        df_original, _ = fetch_table_csv("gold", selected_table)
     
-    if df is None:
+    if df_original is None:
         st.error("No se pudo cargar el dataset")
         return
     
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Filas", f"{len(df):,}")
+        st.metric("Filas", f"{len(df_original):,}")
     with col2:
-        st.metric("Columnas", len(df.columns))
+        st.metric("Columnas", len(df_original.columns))
     
-    with st.expander("Vista previa del dataset", expanded=False):
-        st.dataframe(df.head(20), use_container_width=True, height=300)
+    with st.expander("Vista previa del dataset original", expanded=False):
+        st.dataframe(df_original.head(20), use_container_width=True, height=300)
+    
+    st.divider()
+    
+    # ENCODING SECTION
+    df = render_encoding_section(df_original, selected_table)
     
     st.divider()
     
