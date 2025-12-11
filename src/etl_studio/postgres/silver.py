@@ -13,8 +13,8 @@ def get_preview_from_bronze(table_name: str, limit: int = 5) -> pd.DataFrame:
     cleaned_name = clean_table_name(table_name)
     engine = get_engine()
     
-    query = text("SELECT * FROM bronze.:table_name LIMIT :limit")
-    return pd.read_sql(query, engine, params={"table_name": cleaned_name, "limit": limit})
+    query = text(f"SELECT * FROM bronze.{cleaned_name} LIMIT :limit")
+    return pd.read_sql(query, engine, params={"limit": limit})
 
 
 def get_table_from_bronze(table_name: str) -> pd.DataFrame:
@@ -22,8 +22,8 @@ def get_table_from_bronze(table_name: str) -> pd.DataFrame:
     cleaned_name = clean_table_name(table_name)
     engine = get_engine()
     
-    query = text("SELECT * FROM bronze.:table_name")
-    return pd.read_sql(query, engine, params={"table_name": cleaned_name})
+    query = text(f"SELECT * FROM bronze.{cleaned_name}")
+    return pd.read_sql(query, engine)
 
 
 def to_silver_db(df: pd.DataFrame, table_name: str) -> None:
