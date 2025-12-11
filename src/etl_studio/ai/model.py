@@ -148,6 +148,24 @@ def get_available_models(task_type: str) -> dict:
     else:
         raise ValueError(f"Unknown task type: {task_type}")
 
+def apply_encoding(
+    df: pd.DataFrame,
+    encoding_config: dict[str, str]
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+
+    df_encoded = df.copy()
+    encoders = {}
+    
+    for column, encoding_type in encoding_config.items():
+        if column not in df.columns:
+            continue
+
+        dummies = pd.get_dummies(df_encoded[column], prefix=column, drop_first=False)
+        df_encoded = pd.concat([df_encoded.drop(columns=[column]), dummies], axis=1)
+        encoders[column] = {"type": "onehot", "columns": dummies.columns.tolist()}
+            
+    return df_encoded, encoders
+
 def get_categorical_columns(df: pd.DataFrame) -> list[str]:
     """Get list of categorical columns in a DataFrame.
     
