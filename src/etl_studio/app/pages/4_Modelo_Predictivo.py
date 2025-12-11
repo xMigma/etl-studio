@@ -121,6 +121,15 @@ def plot_regression_results(y_test: list, y_pred: list) -> go.Figure:
 
 
 def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
+    """Render the encoding section and return the encoded dataframe.
+    
+    Args:
+        df: Original DataFrame
+        table_name: Name of the table (for session state keys)
+        
+    Returns:
+        Encoded DataFrame (or original if no encoding applied)
+    """    
     st.subheader("Feature Encoding")
     
     # Initialize session state for encoding config
@@ -162,6 +171,43 @@ def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
                 enc_type = "onehot" if encoding_type == "One-Hot Encoding" else "label"
                 st.session_state[encoding_key][selected_col] = enc_type
                 st.rerun()
+    # Preview section
+    with col_preview:
+        st.markdown("##### Preview")
+        
+        if st.session_state[encoding_key]:
+            # Apply encoding
+            try:
+                df_encoded, encoders = model.apply_encoding(df, st.session_state[encoding_key])
+                
+                # Show comparison
+                tab_before, tab_after = st.tabs(["BEFORE", "AFTER"])
+                
+                with tab_before:
+                    cols_to_show = list(st.session_state[encoding_key].keys())[:3]
+                    st.dataframe(df[cols_to_show].head(10), use_container_width=True, height=300)
+                
+                with tab_after:
+                    # Show relevant columns after encoding
+                    cols_after = []
+                    for col in st.session_state[encoding_key].keys():
+                        if col in df_encoded.columns:
+                            cols_after.append(col)
+                        else:
+                            # One-hot encoded columns
+                            cols_after.extend([c for c in df_encoded.columns if c.startswith(f"{col}_")])
+                    
+                    cols_after = cols_after[:10]  # Limit to first 10 columns
+                    st.dataframe(df_encoded[cols_after].head(10), use_container_width=True, height=300)
+                
+                return df_encoded
+                
+            except Exception as e:
+                st.error(f"Error al aplicar encoding: {e}")
+                return df
+        else:
+            st.info("Añade encodings para ver el preview")
+            return df
     
     return df
 
