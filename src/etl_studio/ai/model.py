@@ -148,6 +148,16 @@ def get_available_models(task_type: str) -> dict:
     else:
         raise ValueError(f"Unknown task type: {task_type}")
 
+def get_categorical_columns(df: pd.DataFrame) -> list[str]:
+    """Get list of categorical columns in a DataFrame.
+    
+    Args:
+        df: DataFrame to analyze
+        
+    Returns:
+        List of categorical column names
+    """
+    return df.select_dtypes(include=['object', 'category']).columns.tolist()
 
 def train_model(
     df: pd.DataFrame,
