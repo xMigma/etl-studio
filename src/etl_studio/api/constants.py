@@ -4,36 +4,36 @@ SILVER_OPERATIONS = {
     "fillna": {
         "name": "FillNA",
         "description": "Fill null values",
-        "requires_value": True
+        "parameters": ["column", "value"]
     },
     "drop_nulls": {
         "name": "DropNulls",
         "description": "Remove rows with null values",
-        "requires_value": False
+        "parameters": ["column"]
     },
     "drop_duplicates": {
         "name": "DropDuplicates",
         "description": "Remove duplicate rows",
-        "requires_value": False
+        "parameters": ["column"]
     },
     "lowercase": {
         "name": "Lowercase",
         "description": "Convert text to lowercase",
-        "requires_value": False
+        "parameters": ["column"]
     },
     "rename_column": {
         "name": "RenameColumn",
         "description": "Rename column",
-        "requires_value": True
+        "parameters": ["column", "new_name"]
     },
     "drop_column": {
         "name": "DropColumn",
         "description": "Delete column",
-        "requires_value": False
+        "parameters": ["column"]
     },
-    "cast_type": {
-        "name": "CastType",
-        "description": "Change data type",
-        "requires_value": True
+    "group_by_column": {
+        "name": "GroupByColumn",
+        "description": "Group by a specific column",
+        "parameters": ["column"]
     }
 }
