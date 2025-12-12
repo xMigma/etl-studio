@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import pandas as pd
 from etl_studio.postgres.silver import to_silver_db, get_preview_from_bronze, get_table_from_bronze
-from etl_studio.api.schemas.silver import Operation
 
 def fillna(df: pd.DataFrame, column: str, value: Any) -> pd.DataFrame:
     """Fill null values in a specific column with the given value."""
@@ -39,48 +38,40 @@ def drop_column(df: pd.DataFrame, column: str) -> pd.DataFrame:
     """Delete a column from the DataFrame."""
     return df.drop(columns=[column])
 
+OperationFn = Callable[[pd.DataFrame, dict[str, Any]], pd.DataFrame]
+
+OP_FUNCS: dict[str, OperationFn] = {
+    "fillna": lambda df, p: fillna(df, p["column"], p["value"]),
+    "drop_nulls": lambda df, p: drop_nulls(df, p.get("column")),
+    "drop_duplicates": lambda df, p: drop_duplicates(df, p.get("column")),
+    "lowercase": lambda df, p: lowercase(df, p["column"]),
+    "rename_column": lambda df, p: rename_column(df, p["column"], p["new_name"]),
+    "drop_column": lambda df, p: drop_column(df, p["column"]),
+}
+
 def apply_operation(df: pd.DataFrame, operation: str, params: dict[str, Any]) -> pd.DataFrame:
     """Apply a single operation to the DataFrame based on operation key."""
-    
-    if operation == "fillna":
-        return fillna(df, params["column"], params["value"])
-    
-    elif operation == "drop_nulls":
-        return drop_nulls(df, params.get("column"))
-    
-    elif operation == "drop_duplicates":
-        return drop_duplicates(df, params.get("column"))
-    
-    elif operation == "lowercase":
-        return lowercase(df, params["column"])
-    
-    elif operation == "rename_column":
-        return rename_column(df, params["column"], params["new_name"])
-    
-    elif operation == "drop_column":
-        return drop_column(df, params["column"])
-    
-    else:
+    try:
+        op = OP_FUNCS[operation]
+    except KeyError:
         raise ValueError(f"Unknown operation: {operation}")
 
+    return op(df, params)
 
 def dispatch_operations(
     table_name: str,
-    selected_operations: list[Operation],
+    operations: list[dict[str, Any]],
     preview: bool = True
 ) -> pd.DataFrame:
-    """Get a table from bronze, apply cleaning operations, and optionally save to silver. """
-    if preview:
-        df = get_preview_from_bronze(table_name)
-    else:
-        df = get_table_from_bronze(table_name)
-    
-    for op in selected_operations:
+    """Get a table from bronze, apply cleaning operations, and optionally save to silver."""
+    df = get_preview_from_bronze(table_name) if preview else get_table_from_bronze(table_name)
+
+    for op in operations:
         operation = op["operation"]
         params = op.get("params", {})
         df = apply_operation(df, operation, params)
-    
+
     if not preview:
         to_silver_db(df, table_name)
-    
+
     return df

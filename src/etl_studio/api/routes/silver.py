@@ -32,7 +32,8 @@ def process_preview_silver(request: SilverPreviewRequest):
 def apply_operations_silver(request: SilverPreviewRequest):
     try:
         operations = [op.model_dump(exclude_none=True) for op in request.operations]
-        dispatch_operations(request.table_name, operations, preview=False)
+        df_result = dispatch_operations(request.table_name, operations, preview=False)
+        return Response(content=df_result.to_csv(index=False), media_type="text/csv")
 
     except Exception as e:
         raise HTTPException(
