@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.base
     image: etl-studio-base:latest
     container_name: etl-studio-base
-    command: ["true"] 
+    command: [ "true" ]
 
   postgres:
     image: postgres:15
@@ -21,7 +21,7 @@ services:
     networks:
       - etl-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,6 +35,8 @@ services:
     env_file:
       - .env
     depends_on:
+      base:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     networks:
@@ -50,6 +52,8 @@ services:
     ports:
       - "80:80"
     depends_on:
+      base:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       init-db:
@@ -69,6 +73,8 @@ services:
     ports:
       - "8501:8501"
     depends_on:
+      base:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       init-db:
