@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 from etl_studio.postgres.silver import to_silver_db, get_preview_from_bronze, get_table_from_bronze
+from etl_studio.api.schemas.silver import Operation
 
 def fillna(df: pd.DataFrame, column: str, value: Any) -> pd.DataFrame:
     """Fill null values in a specific column with the given value."""
@@ -65,7 +66,7 @@ def apply_operation(df: pd.DataFrame, operation: str, params: dict[str, Any]) ->
 
 def dispatch_operations(
     table_name: str,
-    selected_operations: list[dict[str, Any]],
+    selected_operations: list[Operation],
     preview: bool = True
 ) -> pd.DataFrame:
     """Get a table from bronze, apply cleaning operations, and optionally save to silver. """

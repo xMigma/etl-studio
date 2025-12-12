@@ -16,9 +16,9 @@ def get_available_rules():
 
 @router_silver.post("/preview/")
 def process_preview_silver(request: SilverPreviewRequest):
-    """Endpoint to preview the result of applying cleaning operations to a preview table."""
     try:
-        df_preview = dispatch_operations(request.table_name, request.operations, preview=True)
+        operations = [op.model_dump(exclude_none=True) for op in request.operations]
+        df_preview = dispatch_operations(request.table_name, operations, preview=True)
         return Response(content=df_preview.to_csv(index=False), media_type="text/csv")
 
     except Exception as e:
@@ -26,12 +26,13 @@ def process_preview_silver(request: SilverPreviewRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing preview: {str(e)}"
         )
-    
+
+
 @router_silver.post("/apply/")
 def apply_operations_silver(request: SilverPreviewRequest):
-    """Endpoint to apply cleaning operations to a table and save it to the silver layer."""
     try:
-        dispatch_operations(request.table_name, request.operations, preview=False)
+        operations = [op.model_dump(exclude_none=True) for op in request.operations]
+        dispatch_operations(request.table_name, operations, preview=False)
 
     except Exception as e:
         raise HTTPException(
