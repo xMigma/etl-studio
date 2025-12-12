@@ -12,6 +12,26 @@ from etl_studio.app.mock_data import JOIN_TYPES, apply_mock_join
 
 setup_page("Gold · ETL Studio")
 
+def apply_join(
+    left_table_name: str,
+    right_table_name: str,
+    config: dict[str, str],
+) -> pd.DataFrame:
+    """Apply join operation using API if available, otherwise use mock join."""
+    payload = {
+        "left_table": left_table_name,
+        "right_table": right_table_name,
+        "config": config,
+    }
+    response, success = post("gold", "join", payload)
+    if success and response and "result_table" in response:
+        result_df = pd.DataFrame(response["result_table"])
+        return result_df
+    else:
+        left_df = st.session_state.gold_dataframes.get(left_table_name)
+        right_df = st.session_state.gold_dataframes.get(right_table_name)
+        return apply_mock_join(left_df, right_df, config)
+
 
 def save_gold_table(df: pd.DataFrame, name: str) -> bool:
     """Save a Gold table. Uses API if available, otherwise saves to session state."""
@@ -128,7 +148,7 @@ def show() -> None:
         if left_df is not None and right_df is not None:
             try:
                 config = {"left_key": left_key, "right_key": right_key, "join_type": join_type}
-                result_df = apply_mock_join(left_df, right_df, config)
+                result_df = apply_join(left_table, right_table, config)
                 
                 col_info1, col_info2, col_info3 = st.columns(3)
                 with col_info1:
