@@ -90,7 +90,7 @@ services:
   chatbot:
     build:
       context: .
-      dockerfile: Dockerfile.chatbot
+      dockerfile: src/etl_studio/ai/Dockerfile.chatbot
     container_name: etl-studio-chatbot
     env_file:
       - .env
@@ -106,6 +106,7 @@ services:
     networks:
       - etl-network
     restart: unless-stopped
+
 
 volumes:
   postgres_data:
