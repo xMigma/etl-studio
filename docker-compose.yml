@@ -1,13 +1,19 @@
 version: '3.8'
 
 services:
+  base:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    image: etl-studio-base:latest
+    container_name: etl-studio-base
+    command: [ "true" ]
+
   postgres:
     image: postgres:15
     container_name: etl-studio-postgres
-    environment:
-      POSTGRES_USER: etl_user
-      POSTGRES_PASSWORD: etl_password
-      POSTGRES_DB: etl_database
+    env_file:
+      - .env
     ports:
       - "5432:5432"
     volumes:
@@ -15,7 +21,7 @@ services:
     networks:
       - etl-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U etl_user -d etl_database" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,34 +29,76 @@ services:
   init-db:
     build:
       context: .
-      dockerfile: src/postgres/Dockerfile
+      dockerfile: src/etl_studio/postgres/Dockerfile
     container_name: etl-studio-init
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_USER: etl_user
-      POSTGRES_PASSWORD: etl_password
-      POSTGRES_DB: etl_database
+    restart: "no"
+    env_file:
+      - .env
     depends_on:
+      base:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     networks:
       - etl-network
+
+  api:
+    build:
+      context: .
+      dockerfile: src/etl_studio/api/Dockerfile
+    container_name: etl-studio-api
+    env_file:
+      - .env
+    ports:
+      - "80:80"
+    depends_on:
+      base:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      init-db:
+        condition: service_completed_successfully
+    networks:
+      - etl-network
+    volumes:
+      - ./src:/app/src
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: src/etl_studio/app/Dockerfile
+    container_name: etl-studio-streamlit
+    env_file:
+      - .env
+    ports:
+      - "8501:8501"
+    depends_on:
+      base:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      init-db:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
+    networks:
+      - etl-network
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
 
   chatbot:
     build:
       context: .
       dockerfile: Dockerfile.chatbot
     container_name: etl-studio-chatbot
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: etl_user
-      POSTGRES_PASSWORD: etl_password
-      POSTGRES_DB: etl_database
-      GROQ_API_KEY: ${GROQ_API_KEY}
+    env_file:
+      - .env
     ports:
       - "8000:8000"
     depends_on:
+      base:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       init-db:

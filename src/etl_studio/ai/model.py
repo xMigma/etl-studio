@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -10,7 +10,7 @@ import pandas as pd
 def train_model(
     df: pd.DataFrame,
     target_column: str,
-    params: dict[str, Any] | None = None,
+    params: Optional[dict[str, Any]] = None,
 ) -> dict[str, float]:
     """Train a supervised model and return training metrics."""
 
