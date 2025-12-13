@@ -115,7 +115,7 @@ def show() -> None:
     with col_rules:
         st.subheader("Reglas")
         
-        for rule_id, rule_data in available_rules.items():
+        for rule_id, rule_data in available_rules["rules"].items():
             is_selected = st.session_state.selected_rule == rule_id
             button_type = "primary" if is_selected else "secondary"
             
