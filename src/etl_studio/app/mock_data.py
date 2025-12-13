@@ -3,7 +3,10 @@
 from pathlib import Path
 from typing import Any, Optional
 
+import json
 import pandas as pd
+
+from etl_studio.etl.silver import groupby_agg
 
 # Ruta a los CSVs de bronze para fallback
 BRONZE_PATH = Path(__file__).parent.parent.parent.parent / "data" / "bronze"
@@ -20,6 +23,7 @@ MOCK_RULES = {
     "trim": {"name": "Trim", "description": "Eliminar espacios en blanco", "requires_value": False},
     "lowercase": {"name": "Lowercase", "description": "Convertir a minúsculas", "requires_value": False},
     "cast_date": {"name": "Cast Date", "description": "Convertir a fecha", "requires_value": False},
+    "groupby": {"name": "Group By + Agregación", "description": "Group by de columnas con agregaciones", "requires_value": True},
 }
 
 # Tipos de join disponibles para Gold layer
@@ -48,6 +52,9 @@ def apply_mock_rule(df: pd.DataFrame, rule_id: str, column: str, value: str) -> 
             result[column] = result[column].str.lower()
     elif rule_id == "cast_date":
         result[column] = pd.to_datetime(result[column], errors="coerce")
+    elif rule_id == "groupby":
+        data = json.loads(value)
+        result = groupby_agg(result, data["group_columns"], data["aggregations"])
     
     return result
 
