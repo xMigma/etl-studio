@@ -38,6 +38,16 @@ def drop_column(df: pd.DataFrame, column: str) -> pd.DataFrame:
     """Delete a column from the DataFrame."""
     return df.drop(columns=[column])
 
+def groupby_agg(df: pd.DataFrame, group_columns: list[str], aggregations: dict[str,str]) -> pd.DataFrame:
+    """Group by a list of columns with given aggregations"""
+    result = df.groupby(group_columns).agg(aggregations)
+
+    new_columns = {}
+    for col, func in aggregations.items():
+        new_columns[col] = f"{col}_{func}"
+
+    return result.rename(columns=new_columns).reset_index()
+
 OperationFn = Callable[[pd.DataFrame, dict[str, Any]], pd.DataFrame]
 
 OP_FUNCS: dict[str, OperationFn] = {
@@ -47,6 +57,7 @@ OP_FUNCS: dict[str, OperationFn] = {
     "lowercase": lambda df, p: lowercase(df, p["column"]),
     "rename_column": lambda df, p: rename_column(df, p["column"], p["new_name"]),
     "drop_column": lambda df, p: drop_column(df, p["column"]),
+    "groupby": lambda df, p: groupby_agg(df, p["group_columns"], p["aggregations"]),
 }
 
 def apply_operation(df: pd.DataFrame, operation: str, params: dict[str, Any]) -> pd.DataFrame:

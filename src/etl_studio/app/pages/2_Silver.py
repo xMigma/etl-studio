@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import requests
 import streamlit as st
+import json
 
 from etl_studio.app import setup_page
 from etl_studio.app.components import render_table_detail
@@ -118,6 +119,12 @@ def show() -> None:
         st.session_state.selected_rule = None
     if "applied_rules" not in st.session_state:
         st.session_state.applied_rules = {}
+    if "groupby_step" not in st.session_state:
+        st.session_state.groupby_step = 1
+    if "groupby_columns" not in st.session_state:
+        st.session_state.groupby_columns = []
+    if "groupby_aggregations" not in st.session_state:
+        st.session_state.groupby_aggregations = {}
     
     tables, tables_mock = fetch_tables()
     available_rules, rules_mock = fetch_rules()
@@ -177,14 +184,86 @@ def show() -> None:
             rule = available_rules.get(rule_id)
             
             if rule:
-                column = st.selectbox("Columna:", df.columns.tolist(), key="rule_column")     
-                value = ""
-                if rule.get("requires_value", False) or rule_id == "fillna":
-                    value = st.text_input("Valor de relleno:", key="rule_value")
+                if rule_id == "groupby":
+                    # paso 1, seleccionar columnas
+                    if st.session_state.groupby_step == 1:
+                        st.caption("Paso 1 de 2: Selecciona las columnas para agrupar")
+                        selected_cols = st.multiselect(
+                            "Columnas del dataset",
+                            df.columns.tolist(),
+                            default=st.session_state.groupby_columns,
+                            key="groupby_cols_select"
+                        )
+
+                        if st.button(
+                            "Continuar",
+                            type="primary",
+                            use_container_width=True,
+                            disabled=len(selected_cols) == 0,
+                            icon=":material/arrow_forward:"
+                        ):
+                            st.session_state.groupby_columns = selected_cols
+                            st.session_state.groupby_step = 2
+                            st.rerun()
+                    # paso 2, seleccionar agregaciones
+                    elif st.session_state.groupby_step == 2:
+                        aggregations = {}
+                        st.caption("Paso 2 de 2: Selecciona las columnas y las agregaciones") 
+
+                        st.info(f"Agrupando por: **{''.join(st.session_state.groupby_columns)}**")
+                        aggregation_cols = [col for col in df.columns if col not in st.session_state.groupby_columns]
+                        if (len(aggregation_cols) == 0):
+                            st.error("No hay columnas para agrupar")
+                        else:
+                            for col in aggregation_cols:
+                                aggregations[col] =st.selectbox(
+                                    f"{col}",
+                                    ["(no incluir)","sum","mean","count","min","max","first","last"],
+                                    key=f"aggregation_{col}"
+                                )
+                            final_agg = dict(filter(lambda item: item[1] != "(no incluir)", aggregations.items()))
+
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button(
+                                "Atrás",
+                                type = "secondary",
+                                use_container_width = True,
+                                icon = ":material/arrow_back:"
+                            ) :
+                                st.session_state.groupby_step = 1
+                                st.rerun()
+                        with col2:
+                            if st.button(
+                                "Continuar",
+                                type= "primary",
+                                use_container_width = True,
+                                icon = ":material/arrow_forward:",
+                                disabled = len(final_agg) == 0
+                            ):
+                                rule_data = {
+                                    "group_columns" : st.session_state.groupby_columns,
+                                    "aggregations" : final_agg
+                                }
+
+                                value = json.dumps(rule_data)
+
+                                add_rule_to_table(selected_table, "groupby", "", value)
+
+                                st.session_state.groupby_step = 1
+                                st.session_state.groupby_columns = []
+                                st.session_state.groupby_aggregations = {}
+                                st.rerun()
+
+                else:
+                    column = st.selectbox("Columna:", df.columns.tolist(), key="rule_column")     
+                    value = ""
+                    if rule.get("requires_value", False) or rule_id == "fillna":
+                        value = st.text_input("Valor de relleno:", key="rule_value")
                 
-                if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
-                    add_rule_to_table(selected_table, rule_id, column, value)
-                    st.rerun()
+                    if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
+                        add_rule_to_table(selected_table, rule_id, column, value)
+                        st.rerun()
         else:
             st.caption("Selecciona una regla para configurarla")
     
