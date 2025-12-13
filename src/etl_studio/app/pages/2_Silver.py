@@ -27,9 +27,14 @@ def fetch_preview(table: str, rules: list[dict], df: pd.DataFrame) -> pd.DataFra
     ]
     payload = {"table_name": table, "operations": operations}
     data, success = post("silver", "preview", payload)
-    if success and data:
-        return pd.DataFrame(data["after"])
-    return apply_mock_rules(df, rules)
+    
+    if success:
+        from io import StringIO
+        df_preview = pd.read_csv(StringIO(data))
+    else:
+        df_preview = apply_mock_rules(df, operations)    
+        
+    return df_preview
 
 
 def get_applied_rules(table_name: str) -> list[dict]:
