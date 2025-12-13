@@ -37,16 +37,21 @@ def clean_table_name(table_name: str) -> str:
     return "".join(c if c.isalnum() or c == "_" else "_" for c in table_name)
 
 
-def get_table(table_name: str, schema: str) -> pd.DataFrame:
-    """Get a complete table from a specific schema."""
+def get_table(table_name: str, schema: str, preview: bool = False) -> pd.DataFrame:
+    """Get a table from a specific schema."""
     cleaned_name = clean_table_name(table_name)
     engine = get_engine()
-    query = text(f"SELECT * FROM {schema}.{cleaned_name}")
+    
+    if preview:
+        query = text(f"SELECT * FROM {schema}.{cleaned_name} LIMIT 10")
+    else:
+        query = text(f"SELECT * FROM {schema}.{cleaned_name}")
+    
     return pd.read_sql(query, engine)
 
 
 def get_table_preview(table_name: str, schema: str, limit: int = 5) -> pd.DataFrame:
-    """Get a preview of a table from a specific schema."""
+    """Get a preview of a table from a specific schema (legacy, use get_table with preview=True)."""
     cleaned_name = clean_table_name(table_name)
     engine = get_engine()
     query = text(f"SELECT * FROM {schema}.{cleaned_name} LIMIT :limit")

@@ -6,18 +6,19 @@ import pandas as pd
 from etl_studio.postgres.postgres import save_table, get_table_names, get_table, table_exists, delete_table
 
 
-def to_bronze_db(table_name: str, df: pd.DataFrame) -> None:
-    """Write DataFrame to the bronze schema in PostgreSQL."""
+def save_table_db(df: pd.DataFrame, table_name: str) -> None:
+    """Save a DataFrame to the bronze schema."""
     save_table(df, table_name, "bronze")
+
+
+def get_table_db(table_name: str, preview: bool = False) -> pd.DataFrame:
+    """Get a table from the bronze schema."""
+    return get_table(table_name, "bronze", preview=preview)
+
 
 def get_table_names_db() -> list[str]:
     """Get all table names from the bronze schema."""
     return get_table_names("bronze")
-
-
-def get_table_content_db(table_name: str) -> pd.DataFrame:
-    """Get content of a specific table from the bronze schema."""
-    return get_table(table_name, "bronze")
 
 
 def table_exists_db(table_name: str) -> bool:
@@ -26,5 +27,7 @@ def table_exists_db(table_name: str) -> bool:
 
 
 def delete_table_db(table_name: str) -> bool:
-    """Delete a specific table from the bronze schema."""
+    """Delete a table from the bronze schema."""
     return delete_table(table_name, "bronze")
+
+
