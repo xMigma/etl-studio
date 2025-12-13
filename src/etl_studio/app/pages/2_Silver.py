@@ -15,7 +15,18 @@ setup_page("Silver · ETL Studio")
 
 def fetch_preview(table: str, rules: list[dict], df: pd.DataFrame) -> pd.DataFrame:
     """Fetch preview from API, fallback to local processing on failure."""
-    data, success = post("silver", "preview", {"table": table, "rules": rules})
+    operations = [
+        {
+            "operation": rule["rule_id"],
+            "params": {
+                "column": rule["column"],
+                "value": rule.get("value", "")
+            }
+        }
+        for rule in rules
+    ]
+    payload = {"table_name": table, "operations": operations}
+    data, success = post("silver", "preview", payload)
     if success and data:
         return pd.DataFrame(data["after"])
     return apply_mock_rules(df, rules)
@@ -190,7 +201,18 @@ def show() -> None:
     st.divider()
     
     if st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:"):
-        _, success = post("silver", "apply", {"table": selected_table, "rules": applied_rules})
+        operations = [
+            {
+                "operation": rule["rule_id"],
+                "params": {
+                    "column": rule["column"],
+                    "value": rule.get("value", "")
+                }
+            }
+            for rule in applied_rules
+        ]
+        payload = {"table_name": selected_table, "operations": operations}
+        _, success = post("silver", "apply", payload)
         if success:
             st.success("Cambios guardados correctamente en la capa Silver")
         else:
