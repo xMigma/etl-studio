@@ -8,7 +8,7 @@ from sqlalchemy import text
 from etl_studio.postgres.postgres import get_engine, clean_table_name
 
 
-def get_preview_from_bronze(table_name: str, limit: int = 5) -> pd.DataFrame:
+def get_preview_from_bronze(table_name: str, limit: int = 15) -> pd.DataFrame:
     """Get a preview of a specific table from the bronze schema."""
     cleaned_name = clean_table_name(table_name)
     engine = get_engine()
