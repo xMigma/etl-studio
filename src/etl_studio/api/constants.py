@@ -31,9 +31,9 @@ SILVER_OPERATIONS = {
         "description": "Delete column",
         "parameters": ["column"]
     },
-    "group_by_column": {
-        "name": "GroupByColumn",
-        "description": "Group by a specific column",
-        "parameters": ["column"]
+    "groupby": {
+        "name": "GroupBy",
+        "description": "Group by specific columns and aggregations",
+        "parameters": ["group_columns", "aggregations"]
     }
 }

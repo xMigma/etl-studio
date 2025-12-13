@@ -88,6 +88,10 @@ def show() -> None:
     tables, tables_mock = fetch("bronze", "tables")
     available_rules, rules_mock = fetch("silver", "rules")
     
+    
+    if isinstance(available_rules, dict) and "rules" in available_rules:
+        available_rules = available_rules["rules"]
+    
     if tables_mock or rules_mock:
         st.info("Modo de prueba: API no disponible")
     
@@ -127,7 +131,7 @@ def show() -> None:
             button_type = "primary" if is_selected else "secondary"
             
             if st.button(
-                rule_data['name'],
+                rule_data.get('name', rule_id),
                 key=f"btn_{rule_id}",
                 use_container_width=True,
                 type=button_type
@@ -233,7 +237,7 @@ def show() -> None:
         if applied_rules:
             for i, r in enumerate(applied_rules):
                 rule_data = available_rules.get(r["rule_id"])
-                rule_name = rule_data["name"] if rule_data else r["rule_id"]
+                rule_name = rule_data.get("name", r["rule_id"]) if rule_data else r["rule_id"]
                 col_rule, col_delete = st.columns([4, 1])
                 with col_rule:
                     st.text(f"{i+1}. {rule_name} : {r['column']}")
