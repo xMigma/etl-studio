@@ -74,7 +74,7 @@ def clear_rules_for_table(table_name: str) -> None:
 @st.dialog("Detalle de Tabla", width="large")
 def show_table_detail(table_name: str) -> None:
     """Display table details in a dialog."""
-    show_table_detail_dialog(table_name, layer="silver")
+    show_table_detail_dialog(table_name, layer="bronze")
 
 
 def show() -> None:
@@ -142,9 +142,11 @@ def show() -> None:
     with col_editor:
         st.subheader("Configuración")
         
+        print("selected rule: ", str(st.session_state.selected_rule))
+        
         if st.session_state.selected_rule:
             rule_id = st.session_state.selected_rule
-            rule = available_rules.get(rule_id)
+            rule = available_rules["rules"].get(rule_id)
             
             if rule:
                 column = st.selectbox("Columna:", df.columns.tolist(), key="rule_column")     
