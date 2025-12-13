@@ -7,6 +7,7 @@ from typing import Any, Literal, Optional
 
 import pandas as pd
 import requests
+import streamlit as st
 
 from etl_studio.app.mock_data import MOCK_TABLES, MOCK_RULES, get_mock_csv
 from etl_studio.config import API_BASE_URL
@@ -22,6 +23,7 @@ MOCK_DATA: dict[str, Any] = {
 }
 
 
+@st.cache_data(show_spinner=False)
 def fetch(layer: Layer, resource: Resource) -> tuple[Any, bool]:
     """Fetch a resource from a layer. Falls back to mock data if API unavailable."""
     try:
@@ -56,6 +58,7 @@ def post(
     return None, False
 
 
+@st.cache_data(show_spinner=False)
 def fetch_table_csv(layer: Layer, table_name: str, preview: bool = False) -> tuple[Optional[pd.DataFrame], bool]:
     """Fetch table CSV from a layer. Falls back to mock CSV if API unavailable."""
     try:

@@ -142,8 +142,6 @@ def show() -> None:
     with col_editor:
         st.subheader("Configuración")
         
-        print("selected rule: ", str(st.session_state.selected_rule))
-        
         if st.session_state.selected_rule:
             rule_id = st.session_state.selected_rule
             rule = available_rules["rules"].get(rule_id)
@@ -190,15 +188,27 @@ def show() -> None:
     
     col_before, col_after = st.columns(2)
     
-    df_after = fetch_preview(selected_table, applied_rules, df)
-    
     with col_before:
         st.markdown("**BEFORE**")
         st.dataframe(df.head(15), use_container_width=True, height=350)
     
     with col_after:
         st.markdown("**AFTER**")
-        st.dataframe(df_after.head(15), use_container_width=True, height=350)
+        if applied_rules:
+            # Cachear preview usando hash de las reglas
+            import json
+            rules_hash = json.dumps(applied_rules, sort_keys=True)
+            cache_key = f"preview_{selected_table}_{rules_hash}"
+            
+            if cache_key not in st.session_state:
+                df_after = fetch_preview(selected_table, applied_rules, df)
+                st.session_state[cache_key] = df_after
+            else:
+                df_after = st.session_state[cache_key]
+            
+            st.dataframe(df_after.head(15), use_container_width=True, height=350)
+        else:
+            st.caption("Añade reglas para ver el preview")
                 
     st.divider()
     
