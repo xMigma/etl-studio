@@ -78,7 +78,7 @@ def show() -> None:
     if "applied_rules" not in st.session_state:
         st.session_state.applied_rules = {}
     
-    tables, tables_mock = fetch("silver", "tables")
+    tables, tables_mock = fetch("bronze", "tables")
     available_rules, rules_mock = fetch("silver", "rules")
     
     if tables_mock or rules_mock:
@@ -102,7 +102,7 @@ def show() -> None:
         return
     
     # Cargar datos de la tabla
-    df, _ = fetch_table_csv("silver", selected_table)
+    df, _ = fetch_table_csv("bronze", selected_table)
     if df is None:
         st.error("No se pudo cargar la tabla")
         return
