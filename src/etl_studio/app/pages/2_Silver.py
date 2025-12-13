@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 import streamlit as st
 
@@ -44,7 +46,17 @@ def get_applied_rules(table_name: str) -> list[dict]:
     return st.session_state.applied_rules.get(table_name, [])
 
 
-def add_rule_to_table(table_name: str, rule_id: str, column: str, value: str) -> None:
+def update_active_dataframe(table_name: str, df_original: pd.DataFrame) -> None:
+    """Update the active dataframe based on applied rules."""
+    applied_rules = get_applied_rules(table_name)
+    
+    if applied_rules:
+        st.session_state.active_dataframe = fetch_preview(table_name, applied_rules, df_original)
+    else:
+        st.session_state.active_dataframe = df_original.copy()
+
+
+def add_rule_to_table(table_name: str, rule_id: str, column: str, value: str, df_original: pd.DataFrame) -> None:
     """Add a rule to the table's applied rules."""
     if "applied_rules" not in st.session_state:
         st.session_state.applied_rules = {}
@@ -60,20 +72,23 @@ def add_rule_to_table(table_name: str, rule_id: str, column: str, value: str) ->
             "rule_id": rule_id,
             "column": column,
             "value": value
-        })
+        })       
+        
+    update_active_dataframe(table_name, df_original)
 
-
-def remove_rule_from_table(table_name: str, index: int) -> None:
+def remove_rule_from_table(table_name: str, index: int, df_original: pd.DataFrame) -> None:
     """Remove a rule from the table's applied rules by index."""
     if "applied_rules" in st.session_state and table_name in st.session_state.applied_rules:
         if 0 <= index < len(st.session_state.applied_rules[table_name]):
             st.session_state.applied_rules[table_name].pop(index)
+            update_active_dataframe(table_name, df_original)
 
 
-def clear_rules_for_table(table_name: str) -> None:
+def clear_rules_for_table(table_name: str, df_original: pd.DataFrame) -> None:
     """Clear all rules for a table."""
     if "applied_rules" in st.session_state and table_name in st.session_state.applied_rules:
         st.session_state.applied_rules[table_name] = []
+        update_active_dataframe(table_name, df_original)
 
 
 @st.dialog("Detalle de Tabla", width="large")
@@ -123,6 +138,10 @@ def show() -> None:
         st.error("No se pudo cargar la tabla")
         return
     
+    if "active_dataframe" not in st.session_state or "last_table" not in st.session_state or st.session_state.last_table != selected_table:
+        st.session_state.last_table = selected_table
+        update_active_dataframe(selected_table, df)
+    
     st.divider()
     
     # Layout de 2 columnas para reglas y configuración
@@ -152,13 +171,13 @@ def show() -> None:
             rule = available_rules["rules"].get(rule_id)
             
             if rule:
-                column = st.selectbox("Columna:", df.columns.tolist(), key="rule_column")     
+                column = st.selectbox("Columna:", st.session_state.active_dataframe.columns.tolist(), key="rule_column")     
                 value = ""
                 if rule.get("requires_value", False) or rule_id == "fillna":
                     value = st.text_input("Valor de relleno:", key="rule_value")
                 
                 if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
-                    add_rule_to_table(selected_table, rule_id, column, value)
+                    add_rule_to_table(selected_table, rule_id, column, value, df)
                     st.rerun()
         else:
             st.caption("Selecciona una regla para configurarla")
@@ -176,12 +195,12 @@ def show() -> None:
                     st.text(f"{i+1}. {rule_name} : {r['column']}")
                 with col_delete:
                     if st.button("", key=f"del_{i}", help="Eliminar regla", icon=":material/delete:"):
-                        remove_rule_from_table(selected_table, i)
+                        remove_rule_from_table(selected_table, i, df)
                         st.rerun()
             
             st.write("")
             if st.button("Limpiar todas", type="tertiary", use_container_width=True, icon=":material/clear_all:"):
-                clear_rules_for_table(selected_table)
+                clear_rules_for_table(selected_table, df)
                 st.rerun()
         else:
             st.caption("No hay reglas aplicadas")
@@ -199,25 +218,16 @@ def show() -> None:
     
     with col_after:
         st.markdown("**AFTER**")
+        applied_rules = get_applied_rules(selected_table)
         if applied_rules:
-            # Cachear preview usando hash de las reglas
-            import json
-            rules_hash = json.dumps(applied_rules, sort_keys=True)
-            cache_key = f"preview_{selected_table}_{rules_hash}"
-            
-            if cache_key not in st.session_state:
-                df_after = fetch_preview(selected_table, applied_rules, df)
-                st.session_state[cache_key] = df_after
-            else:
-                df_after = st.session_state[cache_key]
-            
-            st.dataframe(df_after.head(15), use_container_width=True, height=350)
+            st.dataframe(st.session_state.active_dataframe.head(15), use_container_width=True, height=350)
         else:
             st.caption("Añade reglas para ver el preview")
                 
     st.divider()
     
     if st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:"):
+        applied_rules = get_applied_rules(selected_table)
         operations = [
             {
                 "operation": rule["rule_id"],
