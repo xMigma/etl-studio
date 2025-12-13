@@ -34,6 +34,7 @@ def inicializar():
     schema_text = obtener_esquema()
 
 def obtener_esquema():
+    ''' Obtiene el esquema de la bbdd'''
     inspector = inspect(engine)
     schema = "Tablas en la base de datos:\n\n"
     
@@ -50,15 +51,17 @@ def obtener_esquema():
     return schema
 
 def es_pregunta_esquema(pregunta):
+    ''' Comprueba si la pregunta es sobre el esquema de la bbdd. Para optimizar rendimiento'''
     palabras_clave = [
         "qué tablas", "cuántas tablas", "qué columnas",
         "estructura", "esquema", "describe", "información sobre"
-    ]
+    ] 
     
     pregunta_lower = pregunta.lower()
     return any(palabra in pregunta_lower for palabra in palabras_clave)
 
 def responder_pregunta_esquema(pregunta):
+    '''Responde a las preguntas del esquema sobre la bbdd'''
     prompt = f"""Eres un asistente de base de datos. 
     Responde esta pregunta sobre el esquema: {schema_text} 
     Pregunta: {pregunta} 
@@ -80,6 +83,7 @@ def responder_pregunta_esquema(pregunta):
         return f"Error: {str(e)}"
 
 def generar_sql(pregunta):
+    '''Genera el SQL en base a la consulta del usuario'''
     prompt = f"""Convierte esta pregunta a SQL de PostgreSQL.
     Esquema de la base de datos: {schema_text}
     Reglas:
@@ -116,6 +120,7 @@ def generar_sql(pregunta):
         return "", f"Error al generar SQL: {str(e)}"
 
 def ejecutar_sql(sql):
+    '''Ejecuta el sql generado por el llm previamente'''
     bannedWords = ["DROP","TRUNCATE","ALTER", "CREATE"]
     is_dangerous = False
 
@@ -143,6 +148,7 @@ def ejecutar_sql(sql):
         return pd.DataFrame(), False, f"Error al ejecutar SQL: {str(e)}"
 
 def ejecutar_force_sql(sql):
+    '''Metodo para ejecutar consultas peligrosas (borrados, creaciones, alteraciones de tablas sobre todo)'''
     print("DEBUG - EJECUTANDO FORCE SQL")
     try:
         with engine.connect() as conn:
@@ -157,6 +163,7 @@ def ejecutar_force_sql(sql):
         return pd.DataFrame(), False, f"Error al ejecutar SQL: {str(e)}"
 
 def explicar_resultados(pregunta, sql, resultados):
+    '''Metodo para mostrar los resultados de la consulta SQL'''
     if resultados.empty:
         resumen = "No se encontraron resultados."
     else:
@@ -191,6 +198,7 @@ def explicar_resultados(pregunta, sql, resultados):
             return f"Encontré {len(resultados)} resultado(s)."
 
 def chat(pregunta):
+    '''Metodo principal para el chatbot''' 
     if client is None:
         inicializar()
     
@@ -246,21 +254,3 @@ def chat(pregunta):
         "respuesta": respuesta,
         "tipo": "datos",
     }
-
-def generate_sql_from_prompt(prompt, catalog=None):
-    if client is None:
-        inicializar()
-    sql, error = generar_sql(prompt)
-    if error:
-        print(f"Error: {error}")
-        return ""
-    return sql
-
-def run_sql_query(sql, gold_path=None):
-    if client is None:
-        inicializar()
-    resultados, _ , error = ejecutar_sql(sql)
-    if error:
-        print(f"Error: {error}")
-        return pd.DataFrame()
-    return resultados
