@@ -38,13 +38,19 @@ def obtener_esquema():
     inspector = inspect(engine)
     schema = "Tablas en la base de datos:\n\n"
     
-    for table_name in inspector.get_table_names():
-        schema += f"Tabla: {table_name}\n"
-        
-        columns = inspector.get_columns(table_name)
-        for col in columns:
-            nullable = "NULL" if col["nullable"] else "NOT NULL"
-            schema += f"  - {col['name']} ({col['type']}) {nullable}\n"
+    for schema_name in ['bronze', 'silver', 'gold']:
+        tables = inspector.get_table_names(schema=schema_name)
+
+        if tables:
+            schema += f"Esquema: {schema_name}\n"
+            
+            for table_name in tables:
+                schema += f"Tabla: {table_name}\n"
+                
+                columns = inspector.get_columns(table_name, schema=schema_name)
+                for col in columns:
+                    nullable = "NULL" if col["nullable"] else "NOT NULL"
+                    schema += f"  - {col['name']} ({col['type']}) {nullable}\n"
         
         schema += "\n"
     
