@@ -26,6 +26,17 @@ MOCK_RULES = {
     "groupby": {"name": "Group By + Agregación", "description": "Group by de columnas con agregaciones", "requires_value": True},
 }
 
+# Mock aggregation functions for when API is unavailable
+MOCK_AGGREGATIONS = [
+    {"id": "sum", "name": "Sum"},
+    {"id": "mean", "name": "Mean"},
+    {"id": "count", "name": "Count"},
+    {"id": "min", "name": "Min"},
+    {"id": "max", "name": "Max"},
+    {"id": "first", "name": "First"},
+    {"id": "last", "name": "Last"},
+]
+
 # Tipos de join disponibles para Gold layer
 JOIN_TYPES = ["inner", "left"]
 
@@ -38,7 +49,10 @@ def get_mock_csv(table_name: str) -> Optional[str]:
     return None
 
 
-def apply_mock_rule(df: pd.DataFrame, rule_id: str, column: str, value: str) -> pd.DataFrame:
+from typing import Union
+
+
+def apply_mock_rule(df: pd.DataFrame, rule_id: str, column: str, value: Union[str, dict]) -> pd.DataFrame:
     """Apply a cleaning rule to the dataframe (mock/fallback)."""
     result = df.copy()
     
@@ -53,8 +67,13 @@ def apply_mock_rule(df: pd.DataFrame, rule_id: str, column: str, value: str) -> 
     elif rule_id == "cast_date":
         result[column] = pd.to_datetime(result[column], errors="coerce")
     elif rule_id == "groupby":
-        data = json.loads(value)
-        result = groupby_agg(result, data["group_columns"], data["aggregations"])
+        # value is now a dict with group_columns and aggregations
+        if isinstance(value, dict):
+            result = groupby_agg(result, value.get("group_columns", []), value.get("aggregations", {}))
+        else:
+            # Fallback for old JSON format
+            data = json.loads(value)
+            result = groupby_agg(result, data["group_columns"], data["aggregations"])
     
     return result
 
@@ -64,10 +83,16 @@ def apply_mock_rules(df: pd.DataFrame, rules: list[dict]) -> pd.DataFrame:
     result = df.copy()
     for rule in rules:
         rule_id = rule.get("operation") or rule.get("rule_id")
-        params = rule.get("params", rule)
-        column = params.get("column", "")
-        value = params.get("value", "")
-        result = apply_mock_rule(result, rule_id, column, value)
+        params = rule.get("params", rule.get("parameters", {}))
+        
+        if rule_id == "groupby":
+            # Special handling for groupby - pass full params
+            result = apply_mock_rule(result, rule_id, "", params)
+        else:
+            # Standard handling - extract column and value
+            column = params.get("column", "")
+            value = params.get("value", "")
+            result = apply_mock_rule(result, rule_id, column, value)
     return result
 
 

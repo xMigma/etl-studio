@@ -8,7 +8,7 @@ import json
 
 from etl_studio.app import setup_page
 from etl_studio.app.components import show_table_detail_dialog
-from etl_studio.app.data import fetch, fetch_table_csv, post
+from etl_studio.app.data import fetch, fetch_table_csv, post, fetch_aggregations
 from etl_studio.app.mock_data import apply_mock_rules
 
 setup_page("Silver · ETL Studio")
@@ -16,17 +16,28 @@ setup_page("Silver · ETL Studio")
 
 def rules_to_operations(rules: list[dict]) -> list[dict]:
     """Convert rules to API operations format."""
-    return [
-        {
-            "operation": rule["rule_id"],
-            "params": {
-                "column": rule["parameters"].get("column", ""),
-                "value": rule["parameters"].get("value", ""),
-                "new_name": rule["parameters"].get("new_name", "")
-            }
-        }
-        for rule in rules
-    ]
+    operations = []
+    for rule in rules:
+        if rule["rule_id"] == "groupby":
+            # Special handling for groupby - expects group_columns and aggregations
+            operations.append({
+                "operation": "groupby",
+                "params": {
+                    "group_columns": rule["parameters"].get("group_columns", []),
+                    "aggregations": rule["parameters"].get("aggregations", {})
+                }
+            })
+        else:
+            # Standard handling for other rules
+            operations.append({
+                "operation": rule["rule_id"],
+                "params": {
+                    "column": rule["parameters"].get("column", ""),
+                    "value": rule["parameters"].get("value", ""),
+                    "new_name": rule["parameters"].get("new_name", "")
+                }
+            })
+    return operations
 
 
 def fetch_preview(table: str, rules: list[dict], df: pd.DataFrame) -> pd.DataFrame:
@@ -175,22 +186,90 @@ def show() -> None:
             rule = available_rules["rules"].get(rule_id)
             
             if rule:
-                column = st.selectbox("Columna:", st.session_state.active_dataframe.columns.tolist(), key="rule_column")     
-                parameters = {}
+                if rule_id == "groupby":
+                    st.caption("Configura el Group By con agregaciones")
+                    
+                    aggregations_list, _ = fetch_aggregations()
+                    agg_options = [agg["id"] for agg in aggregations_list]
+                    
+                    if "groupby_aggregations" not in st.session_state:
+                        st.session_state.groupby_aggregations = {}
+                    
+                    # paso 1, muestra las columnas de agrupacion
+                    group_columns = st.multiselect(
+                        "Columnas para agrupar:",
+                        st.session_state.active_dataframe.columns.tolist(),
+                        key="groupby_columns"
+                    )
+                    
+                    # paso 2, muestra las columnas de agregacion
+                    if group_columns:
+                        st.divider()
+                        st.caption("Añadir agregaciones:")
+                        
+                        remaining_cols = [c for c in st.session_state.active_dataframe.columns if c not in group_columns]
+                        
+                        col1, col2, col3 = st.columns([2, 2, 1], vertical_alignment="bottom")
+                        with col1:
+                            selected_cols = st.selectbox(
+                                "Columna:",
+                                remaining_cols,
+                                key="agg_cols_select"
+                            )
+                        with col2:
+                            selected_agg = st.selectbox(
+                                "Función:",
+                                agg_options,
+                                key="agg_func_select"
+                            )
+                        with col3:
+                            if st.button("", help="Añadir agregación", use_container_width=True, icon=":material/add_circle:"):
+                                if selected_cols: 
+                                    st.session_state.groupby_aggregations[selected_cols] = selected_agg
+                                    st.rerun()
+                        
+                        if st.session_state.groupby_aggregations:
+                            st.divider()
+                            st.caption("Agregaciones configuradas:")
+                            for col, func in list(st.session_state.groupby_aggregations.items()):
+                                col_agg, col_del = st.columns([4, 1])
+                                with col_agg:
+                                    st.text(f"• {col}: {func}")
+                                with col_del:
+                                    if st.button("🗑️", key=f"del_agg_{col}", help="Eliminar"):
+                                        del st.session_state.groupby_aggregations[col]
+                                        st.rerun()
+                        
+                        parameters = {
+                            "group_columns": group_columns,
+                            "aggregations": st.session_state.groupby_aggregations
+                        }
+                        
+                        if st.button("Añadir Regla", type="primary", use_container_width=True, icon=":material/add:", disabled=not st.session_state.groupby_aggregations):
+                            add_rule_to_table(selected_table, rule_id, parameters, df)
+                            st.session_state.groupby_aggregations = {}
+                            st.rerun()
+                    else:
+                        st.info("Selecciona al menos una columna para agrupar")
                 
-                parameters["column"] = column
-                
-                # Los parámetros vienen como lista de strings: ["column", "new_name"]
-                # El primero (column) ya se maneja con el selectbox, los demás necesitan inputs
-                rule_params = rule.get("parameters", [])
-                for param_name in rule_params[1:]:  # Saltar el primer parámetro (column)
-                    # Generar un label legible: "new_name" -> "New Name"
-                    label = param_name.replace("_", " ").title()
-                    parameters[param_name] = st.text_input(label, key=f"param_{param_name}")
-                
-                if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
-                    add_rule_to_table(selected_table, rule_id, parameters, df)
-                    st.rerun()
+                else:
+                    # Standard handling for other rules
+                    column = st.selectbox("Columna:", st.session_state.active_dataframe.columns.tolist(), key="rule_column")     
+                    parameters = {}
+                    
+                    parameters["column"] = column
+                    
+                    # Los parámetros vienen como lista de strings: ["column", "new_name"]
+                    # El primero (column) ya se maneja con el selectbox, los demás necesitan inputs
+                    rule_params = rule.get("parameters", [])
+                    for param_name in rule_params[1:]:  # Saltar el primer parámetro (column)
+                        # Generar un label legible: "new_name" -> "New Name"
+                        label = param_name.replace("_", " ").title()
+                        parameters[param_name] = st.text_input(label, key=f"param_{param_name}")
+                    
+                    if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
+                        add_rule_to_table(selected_table, rule_id, parameters, df)
+                        st.rerun()
         else:
             st.caption("Selecciona una regla para configurarla")
     
@@ -204,7 +283,15 @@ def show() -> None:
                 rule_name = rule_data["name"] if rule_data else r["rule_id"]
                 col_rule, col_delete = st.columns([4, 1])
                 with col_rule:
-                    st.text(f"{i+1}. {rule_name} : {r['parameters'].get('column', '')}")
+                    # Special display for groupby
+                    if r["rule_id"] == "groupby":
+                        params = r["parameters"]
+                        group_cols = ", ".join(params.get("group_columns", []))
+                        aggs = ", ".join([f"{col}_{func}" for col, func in params.get("aggregations", {}).items()])
+                        st.text(f"{i+1}. {rule_name}")
+                        st.caption(f"   Agrupar: {group_cols} | Agregaciones: {aggs}")
+                    else:
+                        st.text(f"{i+1}. {rule_name} : {r['parameters'].get('column', '')}")
                 with col_delete:
                     if st.button("", key=f"del_{i}", help="Eliminar regla", icon=":material/delete:"):
                         remove_rule_from_table(selected_table, i, df)

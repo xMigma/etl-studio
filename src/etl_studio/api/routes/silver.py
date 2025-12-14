@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import Response
 
-from etl_studio.api.constants import SILVER_OPERATIONS
+from etl_studio.api.constants import SILVER_OPERATIONS, AGGREGATION_FUNCTIONS
 from etl_studio.api.schemas.silver import SilverPreviewRequest
 from etl_studio.etl.silver import dispatch_operations
 
@@ -12,6 +12,12 @@ router_silver = APIRouter(prefix="/silver", tags=["silver"])
 def get_available_rules():
     """Returns all available cleaning rules."""
     return {"rules": SILVER_OPERATIONS}
+
+
+@router_silver.get("/aggregations/")
+def get_available_aggregations():
+    """Returns all available aggregation functions for groupby."""
+    return {"aggregations": AGGREGATION_FUNCTIONS}
 
 
 @router_silver.post("/preview/")
