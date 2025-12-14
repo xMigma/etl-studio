@@ -89,3 +89,18 @@ def test_bronze_upload_internal_error(mock_load_csv):
     csv_file = create_csv_file("customers.csv")
     response = client.post("/bronze/upload/", files={"files": csv_file})
     assert response.status_code == 500
+    
+@patch("etl_studio.api.routes.bronze.get_table_content")
+def test_get_bronze_table_content(mock_get_content):
+    sample_csv = SAMPLE_CSV_CONTENT.decode("utf-8")
+    mock_get_content.return_value = sample_csv
+    
+    response = client.get("/bronze/tables/customers")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/csv; charset=utf-8"
+    assert response.text == sample_csv
+    mock_get_content.assert_called_once_with("customers", limit=None)
+    
+def test_get_bronze_table_content_not_found():
+    response = client.get("/bronze/tables/nonexistent_table")
+    assert response.status_code == 500
