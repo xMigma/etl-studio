@@ -16,10 +16,27 @@ setup_page("Silver · ETL Studio")
 
 def fetch_preview(table: str, rules: list[dict], df: pd.DataFrame) -> pd.DataFrame:
     """Fetch preview from API, fallback to local processing on failure."""
-    data, success = post("silver", "preview", {"table": table, "rules": rules})
-    if success and data:
-        return pd.DataFrame(data["after"])
-    return apply_mock_rules(df, rules)
+    operations = [
+        {
+            "operation": rule["rule_id"],
+            "params": {
+                "column": rule["parameters"].get("column", ""),
+                "value": rule["parameters"].get("value", ""),
+                "new_name": rule["parameters"].get("new_name", "")
+            }
+        }
+        for rule in rules
+    ]
+    payload = {"table_name": table, "operations": operations}
+    data, success = post("silver", "preview", payload)
+    
+    if success:
+        from io import StringIO
+        df_preview = pd.read_csv(StringIO(data))
+    else:
+        df_preview = apply_mock_rules(df, operations)    
+        
+    return df_preview
 
 
 def get_applied_rules(table_name: str) -> list[dict]:
@@ -29,7 +46,17 @@ def get_applied_rules(table_name: str) -> list[dict]:
     return st.session_state.applied_rules.get(table_name, [])
 
 
-def add_rule_to_table(table_name: str, rule_id: str, column: str, value: str) -> None:
+def update_active_dataframe(table_name: str, df_original: pd.DataFrame) -> None:
+    """Update the active dataframe based on applied rules."""
+    applied_rules = get_applied_rules(table_name)
+    
+    if applied_rules:
+        st.session_state.active_dataframe = fetch_preview(table_name, applied_rules, df_original)
+    else:
+        st.session_state.active_dataframe = df_original.copy()
+
+
+def add_rule_to_table(table_name: str, rule_id: str, parameters: dict, df_original: pd.DataFrame) -> None:
     """Add a rule to the table's applied rules."""
     if "applied_rules" not in st.session_state:
         st.session_state.applied_rules = {}
@@ -38,33 +65,35 @@ def add_rule_to_table(table_name: str, rule_id: str, column: str, value: str) ->
         st.session_state.applied_rules[table_name] = []
         
     table = st.session_state.applied_rules[table_name]
-    exists = any(r["rule_id"] == rule_id and r["column"] == column for r in table) 
+    exists = any(r["rule_id"] == rule_id and r["parameters"] == parameters for r in table) 
     
     if not exists:
         st.session_state.applied_rules[table_name].append({
             "rule_id": rule_id,
-            "column": column,
-            "value": value
-        })
+            "parameters": parameters,
+        })       
+        
+    update_active_dataframe(table_name, df_original)
 
-
-def remove_rule_from_table(table_name: str, index: int) -> None:
+def remove_rule_from_table(table_name: str, index: int, df_original: pd.DataFrame) -> None:
     """Remove a rule from the table's applied rules by index."""
     if "applied_rules" in st.session_state and table_name in st.session_state.applied_rules:
         if 0 <= index < len(st.session_state.applied_rules[table_name]):
             st.session_state.applied_rules[table_name].pop(index)
+            update_active_dataframe(table_name, df_original)
 
 
-def clear_rules_for_table(table_name: str) -> None:
+def clear_rules_for_table(table_name: str, df_original: pd.DataFrame) -> None:
     """Clear all rules for a table."""
     if "applied_rules" in st.session_state and table_name in st.session_state.applied_rules:
         st.session_state.applied_rules[table_name] = []
+        update_active_dataframe(table_name, df_original)
 
 
 @st.dialog("Detalle de Tabla", width="large")
 def show_table_detail(table_name: str) -> None:
     """Display table details in a dialog."""
-    show_table_detail_dialog(table_name, layer="silver")
+    show_table_detail_dialog(table_name, layer="bronze")
 
 
 def show() -> None:
@@ -78,19 +107,9 @@ def show() -> None:
         st.session_state.selected_rule = None
     if "applied_rules" not in st.session_state:
         st.session_state.applied_rules = {}
-    if "groupby_step" not in st.session_state:
-        st.session_state.groupby_step = 1
-    if "groupby_columns" not in st.session_state:
-        st.session_state.groupby_columns = []
-    if "groupby_aggregations" not in st.session_state:
-        st.session_state.groupby_aggregations = {}
     
     tables, tables_mock = fetch("bronze", "tables")
     available_rules, rules_mock = fetch("silver", "rules")
-    
-    
-    if isinstance(available_rules, dict) and "rules" in available_rules:
-        available_rules = available_rules["rules"]
     
     if tables_mock or rules_mock:
         st.info("Modo de prueba: API no disponible")
@@ -118,6 +137,10 @@ def show() -> None:
         st.error("No se pudo cargar la tabla")
         return
     
+    if "active_dataframe" not in st.session_state or "last_table" not in st.session_state or st.session_state.last_table != selected_table:
+        st.session_state.last_table = selected_table
+        update_active_dataframe(selected_table, df)
+    
     st.divider()
     
     # Layout de 2 columnas para reglas y configuración
@@ -126,7 +149,7 @@ def show() -> None:
     with col_rules:
         st.subheader("Reglas")
         
-        for rule_id, rule_data in available_rules.items():
+        for rule_id, rule_data in available_rules["rules"].items():
             is_selected = st.session_state.selected_rule == rule_id
             button_type = "primary" if is_selected else "secondary"
             
@@ -144,89 +167,25 @@ def show() -> None:
         
         if st.session_state.selected_rule:
             rule_id = st.session_state.selected_rule
-            rule = available_rules.get(rule_id)
+            rule = available_rules["rules"].get(rule_id)
             
             if rule:
-                if rule_id == "groupby":
-                    # paso 1, seleccionar columnas
-                    if st.session_state.groupby_step == 1:
-                        st.caption("Paso 1 de 2: Selecciona las columnas para agrupar")
-                        selected_cols = st.multiselect(
-                            "Columnas del dataset",
-                            df.columns.tolist(),
-                            default=st.session_state.groupby_columns,
-                            key="groupby_cols_select"
-                        )
-
-                        if st.button(
-                            "Continuar",
-                            type="primary",
-                            use_container_width=True,
-                            disabled=len(selected_cols) == 0,
-                            icon=":material/arrow_forward:"
-                        ):
-                            st.session_state.groupby_columns = selected_cols
-                            st.session_state.groupby_step = 2
-                            st.rerun()
-                    # paso 2, seleccionar agregaciones
-                    elif st.session_state.groupby_step == 2:
-                        aggregations = {}
-                        st.caption("Paso 2 de 2: Selecciona las columnas y las agregaciones") 
-
-                        st.info(f"Agrupando por: **{''.join(st.session_state.groupby_columns)}**")
-                        aggregation_cols = [col for col in df.columns if col not in st.session_state.groupby_columns]
-                        if (len(aggregation_cols) == 0):
-                            st.error("No hay columnas para agrupar")
-                        else:
-                            for col in aggregation_cols:
-                                aggregations[col] =st.selectbox(
-                                    f"{col}",
-                                    ["(no incluir)","sum","mean","count","min","max","first","last"],
-                                    key=f"aggregation_{col}"
-                                )
-                            final_agg = dict(filter(lambda item: item[1] != "(no incluir)", aggregations.items()))
-
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button(
-                                "Atrás",
-                                type = "secondary",
-                                use_container_width = True,
-                                icon = ":material/arrow_back:"
-                            ) :
-                                st.session_state.groupby_step = 1
-                                st.rerun()
-                        with col2:
-                            if st.button(
-                                "Continuar",
-                                type= "primary",
-                                use_container_width = True,
-                                icon = ":material/arrow_forward:",
-                                disabled = len(final_agg) == 0
-                            ):
-                                rule_data = {
-                                    "group_columns" : st.session_state.groupby_columns,
-                                    "aggregations" : final_agg
-                                }
-
-                                value = json.dumps(rule_data)
-
-                                add_rule_to_table(selected_table, "groupby", "", value)
-
-                                st.session_state.groupby_step = 1
-                                st.session_state.groupby_columns = []
-                                st.session_state.groupby_aggregations = {}
-                                st.rerun()
-
-                else:
-                    column = st.selectbox("Columna:", df.columns.tolist(), key="rule_column")     
-                    value = ""
-                    if rule.get("requires_value", False) or rule_id == "fillna":
-                        value = st.text_input("Valor de relleno:", key="rule_value")
+                column = st.selectbox("Columna:", st.session_state.active_dataframe.columns.tolist(), key="rule_column")     
+                parameters = {}
                 
-                    if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
-                        add_rule_to_table(selected_table, rule_id, column, value)
-                        st.rerun()
+                parameters["column"] = column
+                
+                # Los parámetros vienen como lista de strings: ["column", "new_name"]
+                # El primero (column) ya se maneja con el selectbox, los demás necesitan inputs
+                rule_params = rule.get("parameters", [])
+                for param_name in rule_params[1:]:  # Saltar el primer parámetro (column)
+                    # Generar un label legible: "new_name" -> "New Name"
+                    label = param_name.replace("_", " ").title()
+                    parameters[param_name] = st.text_input(label, key=f"param_{param_name}")
+                
+                if st.button("Añadir", type="primary", use_container_width=True, icon=":material/add:"):
+                    add_rule_to_table(selected_table, rule_id, parameters, df)
+                    st.rerun()
         else:
             st.caption("Selecciona una regla para configurarla")
     
@@ -236,19 +195,19 @@ def show() -> None:
         applied_rules = get_applied_rules(selected_table)
         if applied_rules:
             for i, r in enumerate(applied_rules):
-                rule_data = available_rules.get(r["rule_id"])
-                rule_name = rule_data.get("name", r["rule_id"]) if rule_data else r["rule_id"]
+                rule_data = available_rules["rules"].get(r["rule_id"])
+                rule_name = rule_data["name"] if rule_data else r["rule_id"]
                 col_rule, col_delete = st.columns([4, 1])
                 with col_rule:
-                    st.text(f"{i+1}. {rule_name} : {r['column']}")
+                    st.text(f"{i+1}. {rule_name} : {r['parameters'].get('column', '')}")
                 with col_delete:
                     if st.button("", key=f"del_{i}", help="Eliminar regla", icon=":material/delete:"):
-                        remove_rule_from_table(selected_table, i)
+                        remove_rule_from_table(selected_table, i, df)
                         st.rerun()
             
             st.write("")
             if st.button("Limpiar todas", type="tertiary", use_container_width=True, icon=":material/clear_all:"):
-                clear_rules_for_table(selected_table)
+                clear_rules_for_table(selected_table, df)
                 st.rerun()
         else:
             st.caption("No hay reglas aplicadas")
@@ -260,20 +219,35 @@ def show() -> None:
     
     col_before, col_after = st.columns(2)
     
-    df_after = fetch_preview(selected_table, applied_rules, df)
-    
     with col_before:
         st.markdown("**BEFORE**")
         st.dataframe(df.head(15), use_container_width=True, height=350)
     
     with col_after:
         st.markdown("**AFTER**")
-        st.dataframe(df_after.head(15), use_container_width=True, height=350)
+        applied_rules = get_applied_rules(selected_table)
+        if applied_rules:
+            st.dataframe(st.session_state.active_dataframe.head(15), use_container_width=True, height=350)
+        else:
+            st.caption("Añade reglas para ver el preview")
                 
     st.divider()
     
     if st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:"):
-        _, success = post("silver", "apply", {"table": selected_table, "rules": applied_rules})
+        applied_rules = get_applied_rules(selected_table)
+        operations = [
+            {
+                "operation": rule["rule_id"],
+                "params": {
+                    "column": rule["parameters"].get("column", ""),
+                    "value": rule["parameters"].get("value", ""),
+                    "new_name": rule["parameters"].get("new_name", "")
+                }
+            }
+            for rule in applied_rules
+        ]
+        payload = {"table_name": selected_table, "operations": operations}
+        _, success = post("silver", "apply", payload)
         if success:
             st.success("Cambios guardados correctamente en la capa Silver")
         else:
