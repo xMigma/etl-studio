@@ -104,3 +104,27 @@ def test_get_bronze_table_content(mock_get_content):
 def test_get_bronze_table_content_not_found():
     response = client.get("/bronze/tables/nonexistent_table")
     assert response.status_code == 500
+    
+@patch("etl_studio.api.routes.bronze.delete_table")
+def test_delete_bronze_table(mock_delete_table):
+    mock_delete_table.return_value = True
+    
+    response = client.delete("/bronze/tables/customers")
+    assert response.status_code == 200
+    mock_delete_table.assert_called_once_with("customers")
+    
+@patch("etl_studio.api.routes.bronze.delete_table")
+def test_delete_bronze_table_not_found(mock_delete_table):
+    mock_delete_table.return_value = False
+    
+    response = client.delete("/bronze/tables/nonexistent_table")
+    assert response.status_code == 404
+    mock_delete_table.assert_called_once_with("nonexistent_table")
+    
+@patch("etl_studio.api.routes.bronze.delete_table")
+def test_delete_bronze_table_internal_error(mock_delete_table):
+    mock_delete_table.side_effect = Exception("Database error")
+    
+    response = client.delete("/bronze/tables/customers")
+    assert response.status_code == 500
+    mock_delete_table.assert_called_once_with("customers")
