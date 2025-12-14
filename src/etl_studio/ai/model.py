@@ -6,6 +6,8 @@ import pickle
 from pathlib import Path
 from typing import Any, Optional
 
+import mlflow
+import mlflow.sklearn
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import (
@@ -31,7 +33,11 @@ from sklearn.metrics import (
     r2_score,
 )
 from sklearn.preprocessing import LabelEncoder
+from etl_studio.config import MLFLOW_TRACKING_URI, MLFLOW_EXPERIMENT_NAME
 
+# Configure MLflow
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
 # Configuración de modelos disponibles
 CLASSIFICATION_MODELS = {
@@ -202,6 +208,7 @@ def train_model(
     selected_features: Optional[list[str]] = None,
     test_size: float = 0.2,
     use_cross_validation: bool = True,
+    run_name: Optional[str] = None,
 ) -> dict[str, Any]:
     """Train a supervised model and return training metrics.
     
@@ -220,6 +227,12 @@ def train_model(
     """
     if params is None:
         params = {}
+
+    # Start MLflow run
+    with mlflow.start_run(run_name=run_name) as run:
+        # Log parameters
+        mlflow.log_param("model_name", model_name)
+        mlflow.log_params({f"model_{k}": v for k, v in params.items()})    
     
     # Get model class
     models_dict = get_available_models(task_type)
@@ -246,6 +259,9 @@ def train_model(
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=42
     )
+
+    mlflow.log_param("train_samples", len(X_train))
+    mlflow.log_param("test_samples", len(X_test))    
     
     # Train model
     model = model_class(**params)
@@ -258,30 +274,61 @@ def train_model(
     # Calculate metrics
     metrics = {}
     
+    # TODO: check if metrics logging in mlflow works properly
     if task_type == "classification":
-        metrics.update(
-            {
-                "accuracy_train": accuracy_score(y_train, y_train_pred),
-                "accuracy_test": accuracy_score(y_test, y_pred),
-                "precision": precision_score(y_test, y_pred, average="weighted", zero_division=0),
-                "recall": recall_score(y_test, y_pred, average="weighted", zero_division=0),
-                "f1_score": f1_score(y_test, y_pred, average="weighted", zero_division=0),
-                "confusion_matrix": confusion_matrix(y_test, y_pred).tolist(),
-            }
-        )
+        # Classification metrics
+        acc_train = accuracy_score(y_train, y_train_pred)
+        acc_test = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred, average="weighted", zero_division=0)
+        recall = recall_score(y_test, y_pred, average="weighted", zero_division=0)
+        f1 = f1_score(y_test, y_pred, average="weighted", zero_division=0)
+        cm = confusion_matrix(y_test, y_pred)
+        
+        metrics.update({
+            "accuracy_train": acc_train,
+            "accuracy_test": acc_test,
+            "precision": precision,
+            "recall": recall,
+            "f1_score": f1,
+            "confusion_matrix": cm.tolist(),
+        })
+        
+        # Log to MLflow
+        mlflow.log_metric("accuracy_train", acc_train)
+        mlflow.log_metric("accuracy_test", acc_test)
+        mlflow.log_metric("precision", precision)
+        mlflow.log_metric("recall", recall)
+        mlflow.log_metric("f1_score", f1)
+        
     else:
-        metrics.update(
-            {
-                "mae_train": mean_absolute_error(y_train, y_train_pred),
-                "mae_test": mean_absolute_error(y_test, y_pred),
-                "mse_train": mean_squared_error(y_train, y_train_pred),
-                "mse_test": mean_squared_error(y_test, y_pred),
-                "rmse_train": np.sqrt(mean_squared_error(y_train, y_train_pred)),
-                "rmse_test": np.sqrt(mean_squared_error(y_test, y_pred)),
-                "r2_train": r2_score(y_train, y_train_pred),
-                "r2_test": r2_score(y_test, y_pred),
-            }
-        )
+        # Regression metrics
+        mae_train = mean_absolute_error(y_train, y_train_pred)
+        mae_test = mean_absolute_error(y_test, y_pred)
+        mse_train = mean_squared_error(y_train, y_train_pred)
+        mse_test = mean_squared_error(y_test, y_pred)
+        rmse_train = np.sqrt(mse_train)
+        rmse_test = np.sqrt(mse_test)
+        r2_train = r2_score(y_train, y_train_pred)
+        r2_test = r2_score(y_test, y_pred)
+        
+        metrics.update({
+            "mae_train": mae_train,
+            "mae_test": mae_test,
+            "mse_train": mse_train,
+            "mse_test": mse_test,
+            "rmse_train": rmse_train,
+            "rmse_test": rmse_test,
+            "r2_train": r2_train,
+            "r2_test": r2_test,
+        })
+        
+        # Log to MLflow
+        mlflow.log_metric("mae_train", mae_train)
+        mlflow.log_metric("mae_test", mae_test)
+        mlflow.log_metric("rmse_train", rmse_train)
+        mlflow.log_metric("rmse_test", rmse_test)
+        mlflow.log_metric("r2_train", r2_train)
+        mlflow.log_metric("r2_test", r2_test)
     
     # Cross-validation
     if use_cross_validation:
@@ -290,6 +337,8 @@ def train_model(
         metrics["cv_scores"] = cv_scores.tolist()
         metrics["cv_mean"] = cv_scores.mean()
         metrics["cv_std"] = cv_scores.std()
+        mlflow.log_metric("cv_mean", cv_scores.mean())
+        mlflow.log_metric("cv_std", cv_scores.std())
     
     # Feature importance (if available)
     if hasattr(model, "feature_importances_"):
@@ -297,7 +346,20 @@ def train_model(
             {"feature": X.columns, "importance": model.feature_importances_}
         ).sort_values("importance", ascending=False)
         metrics["feature_importance"] = feature_importance.to_dict(orient="records")
-    
+        
+        # Log feature importance as artifact
+        importance_path = "feature_importance.csv"
+        feature_importance.to_csv(importance_path, index=False)
+        mlflow.log_artifact(importance_path)
+        Path(importance_path).unlink()  
+
+    # Log model to MLflow
+    mlflow.sklearn.log_model(
+        model,
+        "model",
+        registered_model_name=f"{model_name.replace(' ', '_')}_{task_type}"
+    )
+
     # Save model
     model_dir = Path("models")
     model_dir.mkdir(exist_ok=True)

@@ -114,6 +114,8 @@ def main():
         
         create_schemas(conn)
         conn.close()
+
+        create_mlflow_database(db_host, db_user, db_password, mlflow_db)
         
     except Exception as e:
         print(f"\nError: {e}")
