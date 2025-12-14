@@ -171,7 +171,7 @@ def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
             st.caption(f"Valores únicos: {unique_values}")
             
             if unique_values > 20:
-                st.warning(f"⚠️ Esta columna tiene {unique_values} valores únicos. One-Hot Encoding creará muchas columnas.")
+                st.warning(f"Esta columna tiene {unique_values} valores únicos. One-Hot Encoding creará muchas columnas.")
             
             # Add encoding button
             if st.button("Añadir Encoding", type="primary", key=f"add_enc_{table_name}"):
@@ -357,7 +357,7 @@ def show() -> None:
         
         # Info sobre target categorico
         if task_type == "classification" and df[target_column].dtype == "object":
-            st.info("ℹ️ Target categórico detectado. Se aplicará Label Encoding automáticamente durante el entrenamiento.")
+            st.info("Target categórico detectado. Se aplicará Label Encoding automáticamente durante el entrenamiento.")
     
     with col_features:
         available_features = [col for col in df.columns if col != target_column]
@@ -375,7 +375,7 @@ def show() -> None:
                 key="features_multiselect",
             )
             if not selected_features:
-                st.warning("⚠️ Debes seleccionar al menos una feature")
+                st.warning("Debes seleccionar al menos una feature")
                 return
     
     st.divider()
@@ -433,14 +433,14 @@ def show() -> None:
                 status_text.empty()
                 progress_bar.empty()
                 
-                st.success("✅ Modelo entrenado correctamente")
+                st.success("Modelo entrenado correctamente")
                 
                 # Store metrics in session state
                 st.session_state["last_metrics"] = metrics
                 st.session_state["last_task_type"] = task_type
                 
             except Exception as e:
-                st.error(f"❌ Error al entrenar: {str(e)}")
+                st.error(f"Error al entrenar: {str(e)}")
                 return
     
     # Mostrar resultados
@@ -564,7 +564,7 @@ def show() -> None:
                     # Download button
                     csv = predictions.to_csv(index=False)
                     st.download_button(
-                        "📥 Download Predictions (CSV)",
+                        "Download Predictions (CSV)",
                         csv,
                         "predictions.csv",
                         "text/csv",
@@ -572,7 +572,7 @@ def show() -> None:
                     )
                     
                 except Exception as e:
-                    st.error(f"❌ Error al predecir: {str(e)}")
+                    st.error(f"Error al predecir: {str(e)}")
 
 
 if __name__ == "__main__":
