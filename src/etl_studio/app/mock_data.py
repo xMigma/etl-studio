@@ -54,6 +54,7 @@ from typing import Union
 
 def apply_mock_rule(df: pd.DataFrame, rule_id: str, column: str, value: Union[str, dict]) -> pd.DataFrame:
     """Apply a cleaning rule to the dataframe (mock/fallback)."""
+    from etl_studio.etl.silver import rename_column as rename_col_func
     result = df.copy()
     
     if rule_id == "fillna":
@@ -66,6 +67,9 @@ def apply_mock_rule(df: pd.DataFrame, rule_id: str, column: str, value: Union[st
             result[column] = result[column].str.lower()
     elif rule_id == "cast_date":
         result[column] = pd.to_datetime(result[column], errors="coerce")
+    elif rule_id == "rename_column":
+        # value contains the new_name
+        result = rename_col_func(result, column, value)
     elif rule_id == "groupby":
         # value is now a dict with group_columns and aggregations
         if isinstance(value, dict):
@@ -88,6 +92,11 @@ def apply_mock_rules(df: pd.DataFrame, rules: list[dict]) -> pd.DataFrame:
         if rule_id == "groupby":
             # Special handling for groupby - pass full params
             result = apply_mock_rule(result, rule_id, "", params)
+        elif rule_id == "rename_column":
+            # Special handling for rename_column - needs column and new_name
+            column = params.get("column", "")
+            new_name = params.get("new_name", "")
+            result = apply_mock_rule(result, rule_id, column, new_name)
         else:
             # Standard handling - extract column and value
             column = params.get("column", "")
