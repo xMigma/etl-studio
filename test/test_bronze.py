@@ -60,3 +60,17 @@ def test_bronze_upload_not_csv_returns_400():
     
     response = client.post("/bronze/upload/", files={"files": txt_file})
     assert response.status_code == 400
+    
+def test_bronze_upload_no_files_returns_422():
+    response = client.post("/bronze/upload/", files={})
+    assert response.status_code == 422
+    
+@patch("etl_studio.api.routes.bronze.load_csv_to_bronze")
+def test_bronze_upload_internal_error(mock_load_csv):
+    mock_load_csv.side_effect = Exception("Database error")
+    
+    csv_content = b"id,name,email\n1,John,john@example.com\n2,Jane,jane@example.com"
+    csv_file = ("customers.csv", io.BytesIO(csv_content), "text/csv")
+    
+    response = client.post("/bronze/upload/", files={"files": csv_file})
+    assert response.status_code == 500
