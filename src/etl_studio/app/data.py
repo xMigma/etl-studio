@@ -9,7 +9,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from etl_studio.app.mock_data import MOCK_TABLES, MOCK_RULES, get_mock_csv
+from etl_studio.app.mock_data import MOCK_TABLES, MOCK_RULES, MOCK_AGGREGATIONS, get_mock_csv
 from etl_studio.config import API_BASE_URL
 
 
@@ -33,6 +33,19 @@ def fetch(layer: Layer, resource: Resource) -> tuple[Any, bool]:
     except requests.exceptions.RequestException:
         pass
     return MOCK_DATA.get(resource), True
+
+
+@st.cache_data(show_spinner=False)
+def fetch_aggregations() -> tuple[list[dict], bool]:
+    """Fetch available aggregation functions. Falls back to mock if API unavailable."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/silver/aggregations", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("aggregations", []), False
+    except requests.exceptions.RequestException:
+        pass
+    return MOCK_AGGREGATIONS, True
 
 
 def post(

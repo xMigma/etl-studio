@@ -37,3 +37,16 @@ SILVER_OPERATIONS = {
         "parameters": ["group_columns", "aggregations"]
     }
 }
+
+# Available aggregation functions for groupby operations
+AGGREGATION_FUNCTIONS = [
+    {"id": "sum", "name": "Sum", "description": "Sum of values"},
+    {"id": "mean", "name": "Mean", "description": "Average of values"},
+    {"id": "count", "name": "Count", "description": "Count of values"},
+    {"id": "min", "name": "Min", "description": "Minimum value"},
+    {"id": "max", "name": "Max", "description": "Maximum value"},
+    {"id": "first", "name": "First", "description": "First value"},
+    {"id": "last", "name": "Last", "description": "Last value"},
+    {"id": "std", "name": "Std Dev", "description": "Standard deviation"},
+    {"id": "var", "name": "Variance", "description": "Variance"},
+]
