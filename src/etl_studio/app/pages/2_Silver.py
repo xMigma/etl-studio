@@ -14,9 +14,9 @@ from etl_studio.app.mock_data import apply_mock_rules
 setup_page("Silver · ETL Studio")
 
 
-def fetch_preview(table: str, rules: list[dict], df: pd.DataFrame) -> pd.DataFrame:
-    """Fetch preview from API, fallback to local processing on failure."""
-    operations = [
+def rules_to_operations(rules: list[dict]) -> list[dict]:
+    """Convert rules to API operations format."""
+    return [
         {
             "operation": rule["rule_id"],
             "params": {
@@ -27,6 +27,11 @@ def fetch_preview(table: str, rules: list[dict], df: pd.DataFrame) -> pd.DataFra
         }
         for rule in rules
     ]
+
+
+def fetch_preview(table: str, rules: list[dict], df: pd.DataFrame) -> pd.DataFrame:
+    """Fetch preview from API, fallback to local processing on failure."""
+    operations = rules_to_operations(rules)
     payload = {"table_name": table, "operations": operations}
     data, success = post("silver", "preview", payload)
     
@@ -235,17 +240,7 @@ def show() -> None:
     
     if st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:"):
         applied_rules = get_applied_rules(selected_table)
-        operations = [
-            {
-                "operation": rule["rule_id"],
-                "params": {
-                    "column": rule["parameters"].get("column", ""),
-                    "value": rule["parameters"].get("value", ""),
-                    "new_name": rule["parameters"].get("new_name", "")
-                }
-            }
-            for rule in applied_rules
-        ]
+        operations = rules_to_operations(applied_rules)
         payload = {"table_name": selected_table, "operations": operations}
         _, success = post("silver", "apply", payload)
         if success:
