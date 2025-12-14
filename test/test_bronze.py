@@ -55,21 +55,25 @@ def test_list_bronze_tables_empty(mock_get_tables):
     response = client.get("/bronze/tables/")
     assert_table_list_response(response, [])
 
-
-# Tests POST usando los helpers
-def test_bronze_upload():
+@patch("etl_studio.api.routes.bronze.load_csv_to_bronze")
+def test_bronze_upload(mock_load_csv):
+    mock_load_csv.return_value = None  # Simula que la función se ejecuta sin errores
     csv_file = create_csv_file("customers.csv")
     response = client.post("/bronze/upload/", files={"files": csv_file})
     assert response.status_code == 201
+    mock_load_csv.assert_called_once()
 
 
-def test_bronze_upload_multiple():
+@patch("etl_studio.api.routes.bronze.load_csv_to_bronze")
+def test_bronze_upload_multiple(mock_load_csv):
+    mock_load_csv.return_value = None
     files = [
         ("files", create_csv_file("customers.csv", b"id,name\n1,John")),
         ("files", create_csv_file("orders.csv", b"order_id,amount\n100,50.0"))
     ]
     response = client.post("/bronze/upload/", files=files)
     assert response.status_code == 201
+    assert mock_load_csv.call_count == 2 
 
 
 def test_bronze_upload_not_csv_returns_400():
