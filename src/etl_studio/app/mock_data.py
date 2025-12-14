@@ -63,7 +63,11 @@ def apply_mock_rules(df: pd.DataFrame, rules: list[dict]) -> pd.DataFrame:
     """Apply all rules in order to the dataframe (mock/fallback)."""
     result = df.copy()
     for rule in rules:
-        result = apply_mock_rule(result, rule["rule_id"], rule["column"], rule["value"])
+        rule_id = rule.get("operation") or rule.get("rule_id")
+        params = rule.get("params", rule)
+        column = params.get("column", "")
+        value = params.get("value", "")
+        result = apply_mock_rule(result, rule_id, column, value)
     return result
 
 
