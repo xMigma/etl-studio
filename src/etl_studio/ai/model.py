@@ -364,6 +364,11 @@ def train_model(
     model_dir = Path("models")
     model_dir.mkdir(exist_ok=True)
     
+    # Get run info
+    run_id = run.info.run_id
+    metrics["mlflow_run_id"] = run_id
+    metrics["mlflow_tracking_uri"] = MLFLOW_TRACKING_URI
+    
     timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
     model_filename = f"{model_name.replace(' ', '_')}_{task_type}_{timestamp}.pkl"
     model_path = model_dir / model_filename
@@ -376,6 +381,7 @@ def train_model(
         "task_type": task_type,
         "model_name": model_name,
         "params": params,
+        "mlflow_run_id": run_id,
     }
     
     with open(model_path, "wb") as f:
@@ -428,6 +434,45 @@ def predict(df: pd.DataFrame, model_path: str) -> pd.DataFrame:
     # Add prediction probabilities for classification
     if hasattr(model, "predict_proba"):
         probas = model.predict_proba(X)
+        for i, class_label in enumerate(
+            label_encoder.classes_ if label_encoder else range(probas.shape[1])
+        ):
+            result[f"proba_{class_label}"] = probas[:, i]
+    
+    return result
+
+def predict_from_mlflow(df: pd.DataFrame, run_id: str) -> pd.DataFrame:
+    """Run predictions using a model from MLflow."""
+    # Load model from MLflow
+    model_uri = f"runs:/{run_id}/model"
+    model = mlflow.sklearn.load_model(model_uri)
+    
+    # Try to load label encoder
+    label_encoder = None
+    try:
+        encoder_path = mlflow.artifacts.download_artifacts(
+            run_id=run_id,
+            artifact_path="label_encoder.pkl"
+        )
+        with open(encoder_path, "rb") as f:
+            label_encoder = pickle.load(f)
+    except:
+        pass
+    
+    # Predict
+    predictions = model.predict(df)
+    
+    # Decode labels if necessary
+    if label_encoder is not None:
+        predictions = label_encoder.inverse_transform(predictions)
+    
+    # Add predictions to dataframe
+    result = df.copy()
+    result["prediction"] = predictions
+    
+    # Add prediction probabilities for classification
+    if hasattr(model, "predict_proba"):
+        probas = model.predict_proba(df)
         for i, class_label in enumerate(
             label_encoder.classes_ if label_encoder else range(probas.shape[1])
         ):

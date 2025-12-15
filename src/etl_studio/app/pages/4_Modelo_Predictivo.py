@@ -8,11 +8,11 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 from etl_studio.app import setup_page
 from etl_studio.app.data import fetch, fetch_table_csv
 from etl_studio.ai import model
+from etl_studio.config import MLFLOW_TRACKING_URI
 
 setup_page("Modelo Predictivo · ETL Studio")
 
@@ -281,7 +281,22 @@ def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
     
     return df
 
+def render_mlflow_section():
+    """Render MLflow tracking section."""
+    st.subheader("MLflow Tracking")
+    
+    # MLflow UI link
+    st.markdown(f""" **[Open MLflow UI]({MLFLOW_TRACKING_URI})** - View all experiments, metrics, and models""")
+    
+    st.divider()
+    
+    # Recent runs
+    st.markdown("##### Recent Training Runs")
+    recent_runs = model.fetch_recent_mlflow_runs()
+    if recent_runs.empty:
+        st.info("No recent MLflow runs found.")
 
+        
 def show() -> None:
     """Render the model training and inference workspace."""
     

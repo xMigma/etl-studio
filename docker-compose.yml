@@ -50,8 +50,15 @@ services:
       - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
     ports:
       - "5000:5000"
-    volumes: 
+    volumes:
+      - mlflow_data:/mlflow
+    networks:
       - etl-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      init-db:
+        condition: service_completed_successfully
 
   api:
     build:

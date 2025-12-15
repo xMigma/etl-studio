@@ -19,10 +19,17 @@ docker-compose up --build
 
 This will start:
 - **PostgreSQL** on port 5432
+- **MLflow Server** on port 5000
 - **FastAPI** on port 80
 - **Streamlit** on port 8501
 
-Access the Streamlit app at [http://localhost:8501](http://localhost:8501)
+
+
+Access the applications:
+
+Streamlit UI: [http://localhost:8501](http://localhost:8501)
+MLflow UI: [http://localhost:5000](http://localhost:5000)
+FastAPI Docs: [http://localhost:80/docs](http://localhost:80/docs)
 
 To stop all services:
 
