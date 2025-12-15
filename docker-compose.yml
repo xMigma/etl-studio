@@ -45,7 +45,7 @@ services:
     working_dir: /mlflow
     env_file:
       - .env
-    enviroment: 
+    environment: 
       - MLFLOW_BACKEND_STORE_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${MLFLOW_DB}
       - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
     ports:
@@ -59,7 +59,21 @@ services:
         condition: service_healthy
       init-db:
         condition: service_completed_successfully
-
+    command: >
+      bash -c "
+      pip install mlflow psycopg2-binary &&
+      mlflow server 
+        --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${MLFLOW_DB}
+        --default-artifact-root /mlflow/artifacts
+        --host 0.0.0.0
+        --port 5000
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
   api:
     build:
       context: .
@@ -103,6 +117,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  mlflow_data: 
     driver: local
 
 networks:
