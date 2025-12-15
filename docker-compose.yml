@@ -1,4 +1,3 @@
-
 services:
   base:
     build:
@@ -45,7 +44,7 @@ services:
     working_dir: /mlflow
     env_file:
       - .env
-    environment: 
+    environment:
       - MLFLOW_BACKEND_STORE_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${MLFLOW_DB}
       - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
     ports:
@@ -73,7 +72,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      
+
   api:
     build:
       context: .
@@ -88,6 +87,8 @@ services:
         condition: service_healthy
       init-db:
         condition: service_completed_successfully
+      mlflow:
+        condition: service_healthy
     networks:
       - etl-network
     volumes:
@@ -109,6 +110,8 @@ services:
         condition: service_completed_successfully
       api:
         condition: service_started
+      mlflow:
+        condition: service_healthy
     networks:
       - etl-network
     volumes:
@@ -118,7 +121,7 @@ services:
 volumes:
   postgres_data:
     driver: local
-  mlflow_data: 
+  mlflow_data:
     driver: local
 
 networks:
