@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 import pandas as pd
-from etl_studio.postgres.silver import to_silver_db, get_table_from_bronze
+from etl_studio.postgres.silver import get_table_db, save_table_db, get_table_names_db, delete_table_db
 
 def fillna(df: pd.DataFrame, column: str, value: Any) -> pd.DataFrame:
     """Fill null values in a specific column with the given value."""
@@ -64,7 +64,7 @@ def dispatch_operations(
     preview: bool = True
 ) -> pd.DataFrame:
     """Get a table from bronze, apply cleaning operations, and optionally save to silver."""
-    df = get_table_from_bronze(table_name, preview=preview)
+    df = get_table_db(table_name, "bronze", preview=preview)
 
     for op in operations:
         operation = op["operation"]
@@ -72,7 +72,28 @@ def dispatch_operations(
         df = apply_operation(df, operation, params)
 
     if not preview:
-        to_silver_db(df, table_name)
+        save_table_db(df, table_name)
 
     return df
+
+def get_silver_tables_info() -> list[dict]:
+    """Get all silver table names with their row counts."""
+    table_names = get_table_names_db()
+    result = []
+    for table_name in table_names:
+        df = get_table_db(table_name, "silver", preview=False)
+        result.append({"name": table_name, "rows": len(df)})
+    return result
+
+
+def get_table(table_name: str, preview: bool = False) -> str:
+    """Get content of a specific table as CSV string."""
+    df = get_table_db(table_name, "silver", preview=preview)
+    return df.to_csv(index=False)
+
+
+def delete_table(table_name: str) -> bool:
+    """Delete a specific table from the silver layer."""
+    return delete_table_db(table_name)
+
 

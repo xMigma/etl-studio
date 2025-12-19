@@ -15,3 +15,8 @@ class SilverPreviewRequest(BaseModel):
     """Request body for silver layer preview."""
     table_name: str 
     operations: list[Operation]
+
+class SilverTableName(BaseModel):
+    """Model for silver table name and row count."""
+    name: str
+    rows: int
