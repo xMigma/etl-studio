@@ -52,11 +52,3 @@ streamlit run src/etl_studio/app/main.py
 ```bash
 pytest
 ```
-
-## Next steps
-
-- Flesh out ETL logic in `src/etl_studio/etl/bronze.py`, `src/etl_studio/etl/silver.py`, and `src/etl_studio/etl/gold.py`.
-- Implement ML training/prediction logic in `src/etl_studio/ai/model.py`.
-- Connect the SQL chatbot to an LLM provider inside `src/etl_studio/ai/chatbot_sql.py`.
-- Replace placeholder text in each Streamlit page with interactive widgets.
-- Run tests with coverage: `pytest` (reports will be in `test-reports/`)
