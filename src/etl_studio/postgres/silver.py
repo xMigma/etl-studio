@@ -3,41 +3,19 @@
 from __future__ import annotations
 
 import pandas as pd
-from sqlalchemy import text
-
-from etl_studio.postgres.postgres import get_engine, clean_table_name
+from etl_studio.postgres.postgres import get_table, save_table
 
 
-def get_preview_from_bronze(table_name: str, limit: int = 15) -> pd.DataFrame:
-    """Get a preview of a specific table from the bronze schema."""
-    cleaned_name = clean_table_name(table_name)
-    engine = get_engine()
-    
-    query = text(f"SELECT * FROM bronze.{cleaned_name} LIMIT :limit")
-    return pd.read_sql(query, engine, params={"limit": limit})
+def get_table_from_bronze(table_name: str, preview: bool = False) -> pd.DataFrame:
+    """Get a table from the bronze schema."""
+    return get_table(table_name, "bronze", preview=preview)
 
 
-def get_table_from_bronze(table_name: str) -> pd.DataFrame:
-    """Get content of a specific table from the bronze schema."""
-    cleaned_name = clean_table_name(table_name)
-    engine = get_engine()
-    
-    query = text(f"SELECT * FROM bronze.{cleaned_name}")
-    return pd.read_sql(query, engine)
+def save_table_db(df: pd.DataFrame, table_name: str) -> None:
+    """Save a DataFrame to the silver schema."""
+    save_table(df, table_name, "silver")
 
 
 def to_silver_db(df: pd.DataFrame, table_name: str) -> None:
     """Save a DataFrame to the silver schema."""
-    cleaned_name = clean_table_name(table_name)
-    engine = get_engine()
-    with engine.connect() as conn:
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS silver"))
-        conn.commit()
-    
-    df.to_sql(
-        name=cleaned_name,
-        con=engine,
-        schema="silver",
-        if_exists="replace",
-        index=False
-    )
+    save_table_db(df, table_name)

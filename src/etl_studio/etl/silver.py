@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 import pandas as pd
-from etl_studio.postgres.silver import to_silver_db, get_preview_from_bronze, get_table_from_bronze
+from etl_studio.postgres.silver import to_silver_db, get_table_from_bronze
 
 def fillna(df: pd.DataFrame, column: str, value: Any) -> pd.DataFrame:
     """Fill null values in a specific column with the given value."""
@@ -75,7 +75,7 @@ def dispatch_operations(
     preview: bool = True
 ) -> pd.DataFrame:
     """Get a table from bronze, apply cleaning operations, and optionally save to silver."""
-    df = get_preview_from_bronze(table_name) if preview else get_table_from_bronze(table_name)
+    df = get_table_from_bronze(table_name, preview=preview)
 
     for op in operations:
         operation = op["operation"]
@@ -86,3 +86,4 @@ def dispatch_operations(
         to_silver_db(df, table_name)
 
     return df
+
