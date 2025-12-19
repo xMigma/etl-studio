@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Literal, Any
+from typing import Literal
 
 
 class JoinConfig(BaseModel):
@@ -13,10 +13,8 @@ class GoldJoinRequest(BaseModel):
     """Request body for joining tables in gold layer."""
     left_table: str
     right_table: str
+    left_source: Literal["silver", "gold"]
+    right_source: Literal["silver", "gold"]
     config: JoinConfig
 
-
-class GoldJoinResponse(BaseModel):
-    """Response body for joining tables in gold layer."""
-    result_table: list[dict[str, Any]]
 

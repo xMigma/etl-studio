@@ -21,12 +21,6 @@ def get_table_names_db() -> list[str]:
     """Get all table names from the gold schema."""
     return get_table_names("gold")
 
-
-def table_exists_db(table_name: str) -> bool:
-    """Check if a table exists in the gold schema."""
-    return table_exists(table_name, "gold")
-
-
 def delete_table_db(table_name: str) -> bool:
     """Delete a table from the gold schema."""
     return delete_table(table_name, "gold")
