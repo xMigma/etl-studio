@@ -41,13 +41,13 @@ def join_gold_tables(request: GoldJoinRequest):
     return Response(content=result_df.to_csv(index=False), media_type="text/csv")
 
 
-@router_gold.post("/apply/")
+@router_gold.post("/apply/", status_code=status.HTTP_200_OK)
 def apply_gold_join(request: GoldJoinRequest):
     """Apply a join operation and save the result to gold database."""
     _execute_join(request, preview=False)
 
 
-@router_gold.get("/table_names/", response_model=list[GoldTableName], status_code=status.HTTP_200_OK)
+@router_gold.get("/tables/", response_model=list[GoldTableName], status_code=status.HTTP_200_OK)
 def get_table_names():
     """Get all table names from the gold schema."""
     try:
@@ -61,7 +61,7 @@ def get_table_names():
         )
 
 
-@router_gold.get("/table-content/", status_code=status.HTTP_200_OK,)
+@router_gold.get("/tables/{table_name}/", status_code=status.HTTP_200_OK,)
 def get_table_content(table_name: str, preview: bool = False):
     """Get the content of a table from the gold schema as CSV."""
     try:
