@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from etl_studio.postgres.gold import get_table_db, to_gold_db
+from etl_studio.postgres.gold import get_table_db, to_gold_db, get_table_names_db, delete_table_db
 
 
 def join_tables(
@@ -39,4 +39,25 @@ def join_tables(
         to_gold_db(result_df, result_table_name)
     
     return result_df
+
+
+def get_gold_tables_info() -> list[dict]:
+    """Get all gold table names with their row counts."""
+    table_names = get_table_names_db()
+    result = []
+    for table_name in table_names:
+        df = get_table_db(table_name, "gold", preview=False)
+        result.append({"name": table_name, "rows": len(df)})
+    return result
+
+
+def get_table(table_name: str, preview: bool = False) -> str:
+    """Get content of a specific table as CSV string."""
+    df = get_table_db(table_name, "gold", preview=preview)
+    return df.to_csv(index=False)
+
+
+def delete_table(table_name: str) -> bool:
+    """Delete a specific table from the gold layer."""
+    return delete_table_db(table_name)
 

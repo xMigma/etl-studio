@@ -1,6 +1,9 @@
 from pydantic import BaseModel
 from typing import Literal
 
+class GoldTableName(BaseModel):
+    name: str
+    rows: int
 
 class JoinConfig(BaseModel):
     """Configuration for joining tables."""

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from etl_studio.postgres.postgres import get_table as get_table, get_table_names, table_exists, delete_table, save_table
+from etl_studio.postgres.postgres import get_table as get_table, get_table_names, delete_table, save_table
 
 
 def get_table_db(table_name: str, schema: str, preview: bool = False) -> pd.DataFrame:
