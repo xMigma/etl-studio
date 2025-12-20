@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional
+from io import StringIO
 
 import pandas as pd
 import streamlit as st
@@ -17,16 +18,23 @@ def apply_join(
     left_table_name: str,
     right_table_name: str,
     config: dict[str, str],
+    left_source: str = "silver",
+    right_source: str = "silver",
 ) -> pd.DataFrame:
     """Apply join operation using API if available, otherwise use mock join."""
     payload = {
         "left_table": left_table_name,
         "right_table": right_table_name,
+        "left_source": left_source,
+        "right_source": right_source,
         "config": config,
     }
+    
     response, success = post("gold", "join", payload)
-    if success and response and "result_table" in response:
-        result_df = pd.DataFrame(response["result_table"])
+    
+    if success and response:
+        # El API retorna CSV, así que lo parseamos
+        result_df = pd.read_csv(StringIO(response))
         return result_df
     else:
         left_df = st.session_state.gold_dataframes.get(left_table_name)
