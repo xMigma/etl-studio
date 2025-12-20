@@ -183,6 +183,40 @@ def apply_encoding(
     return df_encoded, encoders
 
 
+def apply_feature_encoders(df: pd.DataFrame, encoders: dict[str, Any]) -> pd.DataFrame:
+    """Apply previously fitted encoders to a DataFrame for predictions."""
+    df_encoded = df.copy()
+    
+    for column, encoder_info in encoders.items():
+        if column not in df.columns:
+            continue
+            
+        if encoder_info["type"] == "onehot":
+            # Apply one-hot encoding
+            dummies = pd.get_dummies(df_encoded[column], prefix=column, drop_first=False)
+            df_encoded = pd.concat([df_encoded.drop(columns=[column]), dummies], axis=1)
+            
+            # Ensure all columns from training are present
+            for col in encoder_info["columns"]:
+                if col not in df_encoded.columns:
+                    df_encoded[col] = 0
+            
+            # Remove any extra columns not seen during training
+            extra_cols = [col for col in df_encoded.columns if col.startswith(f"{column}_") and col not in encoder_info["columns"]]
+            if extra_cols:
+                df_encoded = df_encoded.drop(columns=extra_cols)
+                
+        elif encoder_info["type"] == "label":
+            # Apply label encoding
+            le = encoder_info["encoder"]
+            # Handle unseen labels by encoding them as -1 or the most common class
+            df_encoded[column] = df_encoded[column].astype(str).apply(
+                lambda x: le.transform([x])[0] if x in le.classes_ else 0
+            )
+    
+    return df_encoded
+
+
 def get_categorical_columns(df: pd.DataFrame) -> list[str]:
     """Get list of categorical columns in a DataFrame."""
     return df.select_dtypes(include=['object', 'category']).columns.tolist()
@@ -198,6 +232,7 @@ def train_model(
     test_size: float = 0.2,
     use_cross_validation: bool = True,
     run_name: Optional[str] = None,
+    feature_encoders: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Train a supervised model and log to MLflow."""
     if params is None:
@@ -372,6 +407,7 @@ def train_model(
         model_info = {
             "model": model,
             "label_encoder": label_encoder,
+            "feature_encoders": feature_encoders,
             "features": X.columns.tolist(),
             "target": target_column,
             "task_type": task_type,
@@ -401,10 +437,25 @@ def predict(df: pd.DataFrame, model_path: str) -> pd.DataFrame:
     
     model = model_info["model"]
     label_encoder = model_info.get("label_encoder")
+    feature_encoders = model_info.get("feature_encoders")
     features = model_info["features"]
     
+    # Apply feature encoders if they exist
+    df_processed = df.copy()
+    if feature_encoders:
+        df_processed = apply_feature_encoders(df_processed, feature_encoders)
+    else:
+        # Check if features are missing - indicates old model without encoders
+        missing_features = [f for f in features if f not in df_processed.columns]
+        if missing_features:
+            raise ValueError(
+                f"Este modelo fue entrenado con una versión antigua y no tiene encoders guardados. "
+                f"Por favor, re-entrena el modelo para usar la funcionalidad de predicción. "
+                f"Features faltantes: {missing_features[:5]}..."
+            )
+    
     # Select only the features used during training
-    X = df[features]
+    X = df_processed[features]
     
     # Predict
     predictions = model.predict(X)
@@ -512,3 +563,27 @@ def get_mlflow_runs(limit: int = 50) -> pd.DataFrame:
         })
     
     return pd.DataFrame(runs_data)
+
+
+def get_registered_models() -> list[dict]:
+    """Get all registered models from MLflow Model Registry."""
+    client = mlflow.tracking.MlflowClient()
+    
+    try:
+        registered_models = client.search_registered_models()
+        models = []
+        
+        for rm in registered_models:
+            latest_versions = client.get_latest_versions(rm.name)
+            for version in latest_versions:
+                models.append({
+                    "name": rm.name,
+                    "version": version.version,
+                    "stage": version.current_stage,
+                    "run_id": version.run_id,
+                    "creation_timestamp": pd.Timestamp(version.creation_timestamp, unit='ms'),
+                })
+        
+        return models
+    except:
+        return []

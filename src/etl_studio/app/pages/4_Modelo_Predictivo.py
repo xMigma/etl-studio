@@ -12,7 +12,7 @@ import plotly.graph_objects as go
 from etl_studio.app import setup_page
 from etl_studio.app.data import fetch, fetch_table_csv
 from etl_studio.ai import model
-from etl_studio.config import MLFLOW_TRACKING_URI
+from etl_studio.config import MLFLOW_TRACKING_URI_LOCAL
 
 setup_page("Modelo Predictivo · ETL Studio")
 
@@ -194,6 +194,9 @@ def render_encoding_section(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
         try:
             df_encoded, encoders = model.apply_encoding(df, st.session_state[encoding_key])
             
+            # Save encoders to session state for training
+            st.session_state[f"encoders_{table_name}"] = encoders
+            
             col_m1, col_m2, col_m3 = st.columns(3)
             with col_m1:
                 st.metric("Columnas originales", len(df.columns))
@@ -226,7 +229,7 @@ def render_mlflow_section():
     
     # MLflow UI link
     st.markdown(f"""
-    **[Open MLflow UI]({MLFLOW_TRACKING_URI})** - View all experiments, metrics, and models
+    **[Open MLflow UI]({MLFLOW_TRACKING_URI_LOCAL})** - View all experiments, metrics, and models
     """)
     
     st.divider()
@@ -445,6 +448,9 @@ def show() -> None:
                     status_text.text(f"Entrenando {model_name}...")
                     progress_bar.progress(40)
                     
+                    # Get encoders if they exist
+                    feature_encoders = st.session_state.get(f"encoders_{selected_table}", None)
+                    
                     metrics = model.train_model(
                         df=df,
                         target_column=target_column,
@@ -455,6 +461,7 @@ def show() -> None:
                         test_size=test_size,
                         use_cross_validation=use_cv,
                         run_name=run_name or None,
+                        feature_encoders=feature_encoders,
                     )
                     
                     progress_bar.progress(80)
@@ -466,7 +473,7 @@ def show() -> None:
                     
                     st.success("Modelo entrenado correctamente")
                     st.info(f"Run ID: `{metrics['mlflow_run_id']}`")
-                    st.info(f"[Ver en MLflow]({MLFLOW_TRACKING_URI})")
+                    st.info(f"[Ver en MLflow]({MLFLOW_TRACKING_URI_LOCAL})")
                     
                     st.session_state["last_metrics"] = metrics
                     st.session_state["last_task_type"] = task_type
@@ -612,7 +619,7 @@ def show() -> None:
         else:  # MLflow Run
             if "selected_mlflow_run" in st.session_state:
                 selected_run_id = st.session_state["selected_mlflow_run"]
-                st.info(f"✓ Modelo seleccionado: Run ID `{selected_run_id[:8]}...`")
+                st.info(f"Modelo seleccionado: Run ID `{selected_run_id[:8]}...`")
             else:
                 st.warning("Selecciona un run desde la pestaña 'MLflow Tracking'")
                 return
