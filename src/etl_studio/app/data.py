@@ -23,7 +23,6 @@ MOCK_DATA: dict[str, Any] = {
 }
 
 
-@st.cache_data(show_spinner=False)
 def fetch(layer: Layer, resource: Resource) -> tuple[Any, bool]:
     """Fetch a resource from a layer. Falls back to mock data if API unavailable."""
     try:
