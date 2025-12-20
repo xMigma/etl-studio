@@ -112,7 +112,11 @@ def save_table(df: pd.DataFrame, table_name: str, schema: str) -> None:
         conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
         conn.commit()
     
-    df.to_sql(
+    # Normalize column names to avoid PostgreSQL case-sensitivity issues
+    df_normalized = df.copy()
+    df_normalized.columns = [col.lower().replace(" ", "_").replace("-", "_") for col in df.columns]
+    
+    df_normalized.to_sql(
         name=cleaned_name,
         con=engine,
         schema=schema,

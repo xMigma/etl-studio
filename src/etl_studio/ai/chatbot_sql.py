@@ -38,7 +38,7 @@ def obtener_esquema():
     inspector = inspect(engine)
     schema = "Tablas en la base de datos:\n\n"
     
-    for schema_name in ['bronze', 'silver', 'gold']:
+    for schema_name in ['gold']:
         tables = inspector.get_table_names(schema=schema_name)
 
         if tables:
