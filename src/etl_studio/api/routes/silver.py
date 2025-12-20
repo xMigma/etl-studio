@@ -56,7 +56,7 @@ def get_table_names():
         )
 
 
-@router_silver.get("/tables/{table_name}/", status_code=status.HTTP_200_OK,)
+@router_silver.get("/tables/{table_name}", status_code=status.HTTP_200_OK)
 def get_table_content(table_name: str, preview: bool = False):
     """Get the content of a table from the silver schema as CSV."""
     try:
