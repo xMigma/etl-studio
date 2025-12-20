@@ -31,7 +31,8 @@ def join_tables(
         right_df,
         left_on=left_key,
         right_on=right_key,
-        how=join_type
+        how=join_type,
+        suffixes=("_left", "_right")
     )
     
     if not preview:
