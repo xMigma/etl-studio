@@ -39,7 +39,9 @@ services:
       - etl-network
 
   mlflow:
-    image: python:3.10-slim
+    build:
+      context: .
+      dockerfile: src/etl_studio/mlflow/Dockerfile
     container_name: etl-studio-mlflow
     working_dir: /mlflow
     env_file:
@@ -59,19 +61,18 @@ services:
       init-db:
         condition: service_completed_successfully
     command: >
-      bash -c "
-      pip install mlflow psycopg2-binary &&
       mlflow server 
         --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${MLFLOW_DB}
         --default-artifact-root /mlflow/artifacts
         --host 0.0.0.0
         --port 5000
-      "
+        --allowed-hosts '*'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   api:
     build:
