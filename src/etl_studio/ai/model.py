@@ -1,4 +1,4 @@
-"""Machine learning helpers for ETL Studio."""
+"""Machine learning helpers for ETL Studio with MLflow integration."""
 
 from __future__ import annotations
 
@@ -33,13 +33,16 @@ from sklearn.metrics import (
     r2_score,
 )
 from sklearn.preprocessing import LabelEncoder
+
 from etl_studio.config import MLFLOW_TRACKING_URI, MLFLOW_EXPERIMENT_NAME
+
 
 # Configure MLflow
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
-# Configuración de modelos disponibles
+
+# Model configurations (same as before)
 CLASSIFICATION_MODELS = {
     "Random Forest": {
         "class": RandomForestClassifier,
@@ -154,19 +157,12 @@ def get_available_models(task_type: str) -> dict:
     else:
         raise ValueError(f"Unknown task type: {task_type}")
 
+
 def apply_encoding(
     df: pd.DataFrame,
     encoding_config: dict[str, str]
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Apply encoding transformations to categorical features.
-    
-    Args:
-        df: Original DataFrame
-        encoding_config: Dict mapping column names to encoding types ('onehot' or 'label')
-        
-    Returns:
-        Tuple of (encoded_df, encoders_dict) where encoders_dict contains the fitted encoders
-    """
+    """Apply encoding transformations to categorical features."""
     df_encoded = df.copy()
     encoders = {}
     
@@ -175,29 +171,22 @@ def apply_encoding(
             continue
             
         if encoding_type == "onehot":
-            # One-Hot Encoding
             dummies = pd.get_dummies(df_encoded[column], prefix=column, drop_first=False)
             df_encoded = pd.concat([df_encoded.drop(columns=[column]), dummies], axis=1)
             encoders[column] = {"type": "onehot", "columns": dummies.columns.tolist()}
             
         elif encoding_type == "label":
-            # Label Encoding
             le = LabelEncoder()
             df_encoded[column] = le.fit_transform(df_encoded[column].astype(str))
             encoders[column] = {"type": "label", "encoder": le, "classes": le.classes_.tolist()}
     
     return df_encoded, encoders
 
+
 def get_categorical_columns(df: pd.DataFrame) -> list[str]:
-    """Get list of categorical columns in a DataFrame.
-    
-    Args:
-        df: DataFrame to analyze
-        
-    Returns:
-        List of categorical column names
-    """
+    """Get list of categorical columns in a DataFrame."""
     return df.select_dtypes(include=['object', 'category']).columns.tolist()
+
 
 def train_model(
     df: pd.DataFrame,
@@ -210,205 +199,202 @@ def train_model(
     use_cross_validation: bool = True,
     run_name: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Train a supervised model and return training metrics.
-    
-    Args:
-        df: DataFrame with features and target
-        target_column: Name of target column
-        model_name: Name of the model to use
-        task_type: 'classification' or 'regression'
-        params: Hyperparameters for the model
-        selected_features: List of features to use (if None, use all)
-        test_size: Proportion of data for testing
-        use_cross_validation: Whether to use cross-validation
-        
-    Returns:
-        Dictionary with training metrics and model info
-    """
+    """Train a supervised model and log to MLflow."""
     if params is None:
         params = {}
-
+    
     # Start MLflow run
     with mlflow.start_run(run_name=run_name) as run:
         # Log parameters
         mlflow.log_param("model_name", model_name)
-        mlflow.log_params({f"model_{k}": v for k, v in params.items()})    
-    
-    # Get model class
-    models_dict = get_available_models(task_type)
-    if model_name not in models_dict:
-        raise ValueError(f"Unknown model: {model_name}")
-    
-    model_class = models_dict[model_name]["class"]
-    
-    # Prepare data
-    if selected_features:
-        X = df[selected_features]
-    else:
-        X = df.drop(columns=[target_column])
-    
-    y = df[target_column]
-    
-    # Handle categorical target for classification
-    label_encoder = None
-    if task_type == "classification" and y.dtype == "object":
-        label_encoder = LabelEncoder()
-        y = label_encoder.fit_transform(y)
-    
-    # Split data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=42
-    )
-
-    mlflow.log_param("train_samples", len(X_train))
-    mlflow.log_param("test_samples", len(X_test))    
-    
-    # Train model
-    model = model_class(**params)
-    model.fit(X_train, y_train)
-    
-    # Predictions
-    y_pred = model.predict(X_test)
-    y_train_pred = model.predict(X_train)
-    
-    # Calculate metrics
-    metrics = {}
-    
-    # TODO: check if metrics logging in mlflow works properly
-    if task_type == "classification":
-        # Classification metrics
-        acc_train = accuracy_score(y_train, y_train_pred)
-        acc_test = accuracy_score(y_test, y_pred)
-        precision = precision_score(y_test, y_pred, average="weighted", zero_division=0)
-        recall = recall_score(y_test, y_pred, average="weighted", zero_division=0)
-        f1 = f1_score(y_test, y_pred, average="weighted", zero_division=0)
-        cm = confusion_matrix(y_test, y_pred)
+        mlflow.log_param("task_type", task_type)
+        mlflow.log_param("target_column", target_column)
+        mlflow.log_param("test_size", test_size)
+        mlflow.log_param("use_cross_validation", use_cross_validation)
+        mlflow.log_params({f"model_{k}": v for k, v in params.items()})
+        
+        # Get model class
+        models_dict = get_available_models(task_type)
+        if model_name not in models_dict:
+            raise ValueError(f"Unknown model: {model_name}")
+        
+        model_class = models_dict[model_name]["class"]
+        
+        # Prepare data
+        if selected_features:
+            X = df[selected_features]
+            mlflow.log_param("n_features", len(selected_features))
+            mlflow.log_param("features", ",".join(selected_features))
+        else:
+            X = df.drop(columns=[target_column])
+            mlflow.log_param("n_features", len(X.columns))
+        
+        y = df[target_column]
+        
+        # Handle categorical target for classification
+        label_encoder = None
+        if task_type == "classification" and y.dtype == "object":
+            label_encoder = LabelEncoder()
+            y = label_encoder.fit_transform(y)
+            mlflow.log_param("target_classes", ",".join(label_encoder.classes_))
+        
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=42
+        )
+        
+        mlflow.log_param("train_samples", len(X_train))
+        mlflow.log_param("test_samples", len(X_test))
+        
+        # Train model
+        model = model_class(**params)
+        model.fit(X_train, y_train)
+        
+        # Predictions
+        y_pred = model.predict(X_test)
+        y_train_pred = model.predict(X_train)
+        
+        # Calculate and log metrics
+        metrics = {}
+        
+        if task_type == "classification":
+            # Classification metrics
+            acc_train = accuracy_score(y_train, y_train_pred)
+            acc_test = accuracy_score(y_test, y_pred)
+            precision = precision_score(y_test, y_pred, average="weighted", zero_division=0)
+            recall = recall_score(y_test, y_pred, average="weighted", zero_division=0)
+            f1 = f1_score(y_test, y_pred, average="weighted", zero_division=0)
+            cm = confusion_matrix(y_test, y_pred)
+            
+            metrics.update({
+                "accuracy_train": acc_train,
+                "accuracy_test": acc_test,
+                "precision": precision,
+                "recall": recall,
+                "f1_score": f1,
+                "confusion_matrix": cm.tolist(),
+            })
+            
+            # Log to MLflow
+            mlflow.log_metric("accuracy_train", acc_train)
+            mlflow.log_metric("accuracy_test", acc_test)
+            mlflow.log_metric("precision", precision)
+            mlflow.log_metric("recall", recall)
+            mlflow.log_metric("f1_score", f1)
+            
+        else:
+            # Regression metrics
+            mae_train = mean_absolute_error(y_train, y_train_pred)
+            mae_test = mean_absolute_error(y_test, y_pred)
+            mse_train = mean_squared_error(y_train, y_train_pred)
+            mse_test = mean_squared_error(y_test, y_pred)
+            rmse_train = np.sqrt(mse_train)
+            rmse_test = np.sqrt(mse_test)
+            r2_train = r2_score(y_train, y_train_pred)
+            r2_test = r2_score(y_test, y_pred)
+            
+            metrics.update({
+                "mae_train": mae_train,
+                "mae_test": mae_test,
+                "mse_train": mse_train,
+                "mse_test": mse_test,
+                "rmse_train": rmse_train,
+                "rmse_test": rmse_test,
+                "r2_train": r2_train,
+                "r2_test": r2_test,
+            })
+            
+            # Log to MLflow
+            mlflow.log_metric("mae_train", mae_train)
+            mlflow.log_metric("mae_test", mae_test)
+            mlflow.log_metric("rmse_train", rmse_train)
+            mlflow.log_metric("rmse_test", rmse_test)
+            mlflow.log_metric("r2_train", r2_train)
+            mlflow.log_metric("r2_test", r2_test)
+        
+        # Cross-validation
+        if use_cross_validation:
+            scoring = "accuracy" if task_type == "classification" else "r2"
+            cv_scores = cross_val_score(model, X, y, cv=5, scoring=scoring)
+            metrics["cv_scores"] = cv_scores.tolist()
+            metrics["cv_mean"] = cv_scores.mean()
+            metrics["cv_std"] = cv_scores.std()
+            
+            mlflow.log_metric("cv_mean", cv_scores.mean())
+            mlflow.log_metric("cv_std", cv_scores.std())
+        
+        # Feature importance (if available)
+        if hasattr(model, "feature_importances_"):
+            feature_importance = pd.DataFrame({
+                "feature": X.columns,
+                "importance": model.feature_importances_
+            }).sort_values("importance", ascending=False)
+            metrics["feature_importance"] = feature_importance.to_dict(orient="records")
+            
+            # Log feature importance as artifact
+            importance_path = "feature_importance.csv"
+            feature_importance.to_csv(importance_path, index=False)
+            mlflow.log_artifact(importance_path)
+            Path(importance_path).unlink()  # Clean up
+        
+        # Log model to MLflow with signature
+        from mlflow.models.signature import infer_signature
+        signature = infer_signature(X_train, y_train)
+        
+        mlflow.sklearn.log_model(
+            model,
+            "model",
+            signature=signature,
+            registered_model_name=f"{model_name.replace(' ', '_')}_{task_type}"
+        )
+        
+        # Save additional artifacts (label encoder if exists)
+        if label_encoder is not None:
+            encoder_path = "label_encoder.pkl"
+            with open(encoder_path, "wb") as f:
+                pickle.dump(label_encoder, f)
+            mlflow.log_artifact(encoder_path)
+            Path(encoder_path).unlink()
+        
+        # Get run info
+        run_id = run.info.run_id
+        metrics["mlflow_run_id"] = run_id
+        metrics["mlflow_tracking_uri"] = MLFLOW_TRACKING_URI
+        
+        # Also save locally for backward compatibility
+        model_dir = Path("models")
+        model_dir.mkdir(exist_ok=True)
+        
+        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+        model_filename = f"{model_name.replace(' ', '_')}_{task_type}_{timestamp}.pkl"
+        model_path = model_dir / model_filename
+        
+        model_info = {
+            "model": model,
+            "label_encoder": label_encoder,
+            "features": X.columns.tolist(),
+            "target": target_column,
+            "task_type": task_type,
+            "model_name": model_name,
+            "params": params,
+            "mlflow_run_id": run_id,
+        }
+        
+        with open(model_path, "wb") as f:
+            pickle.dump(model_info, f)
         
         metrics.update({
-            "accuracy_train": acc_train,
-            "accuracy_test": acc_test,
-            "precision": precision,
-            "recall": recall,
-            "f1_score": f1,
-            "confusion_matrix": cm.tolist(),
-        })
-        
-        # Log to MLflow
-        mlflow.log_metric("accuracy_train", acc_train)
-        mlflow.log_metric("accuracy_test", acc_test)
-        mlflow.log_metric("precision", precision)
-        mlflow.log_metric("recall", recall)
-        mlflow.log_metric("f1_score", f1)
-        
-    else:
-        # Regression metrics
-        mae_train = mean_absolute_error(y_train, y_train_pred)
-        mae_test = mean_absolute_error(y_test, y_pred)
-        mse_train = mean_squared_error(y_train, y_train_pred)
-        mse_test = mean_squared_error(y_test, y_pred)
-        rmse_train = np.sqrt(mse_train)
-        rmse_test = np.sqrt(mse_test)
-        r2_train = r2_score(y_train, y_train_pred)
-        r2_test = r2_score(y_test, y_pred)
-        
-        metrics.update({
-            "mae_train": mae_train,
-            "mae_test": mae_test,
-            "mse_train": mse_train,
-            "mse_test": mse_test,
-            "rmse_train": rmse_train,
-            "rmse_test": rmse_test,
-            "r2_train": r2_train,
-            "r2_test": r2_test,
-        })
-        
-        # Log to MLflow
-        mlflow.log_metric("mae_train", mae_train)
-        mlflow.log_metric("mae_test", mae_test)
-        mlflow.log_metric("rmse_train", rmse_train)
-        mlflow.log_metric("rmse_test", rmse_test)
-        mlflow.log_metric("r2_train", r2_train)
-        mlflow.log_metric("r2_test", r2_test)
-    
-    # Cross-validation
-    if use_cross_validation:
-        scoring = "accuracy" if task_type == "classification" else "r2"
-        cv_scores = cross_val_score(model, X, y, cv=5, scoring=scoring)
-        metrics["cv_scores"] = cv_scores.tolist()
-        metrics["cv_mean"] = cv_scores.mean()
-        metrics["cv_std"] = cv_scores.std()
-        mlflow.log_metric("cv_mean", cv_scores.mean())
-        mlflow.log_metric("cv_std", cv_scores.std())
-    
-    # Feature importance (if available)
-    if hasattr(model, "feature_importances_"):
-        feature_importance = pd.DataFrame(
-            {"feature": X.columns, "importance": model.feature_importances_}
-        ).sort_values("importance", ascending=False)
-        metrics["feature_importance"] = feature_importance.to_dict(orient="records")
-        
-        # Log feature importance as artifact
-        importance_path = "feature_importance.csv"
-        feature_importance.to_csv(importance_path, index=False)
-        mlflow.log_artifact(importance_path)
-        Path(importance_path).unlink()  
-
-    # Log model to MLflow
-    mlflow.sklearn.log_model(
-        model,
-        "model",
-        registered_model_name=f"{model_name.replace(' ', '_')}_{task_type}"
-    )
-
-    # Save model
-    model_dir = Path("models")
-    model_dir.mkdir(exist_ok=True)
-    
-    # Get run info
-    run_id = run.info.run_id
-    metrics["mlflow_run_id"] = run_id
-    metrics["mlflow_tracking_uri"] = MLFLOW_TRACKING_URI
-    
-    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-    model_filename = f"{model_name.replace(' ', '_')}_{task_type}_{timestamp}.pkl"
-    model_path = model_dir / model_filename
-    
-    model_info = {
-        "model": model,
-        "label_encoder": label_encoder,
-        "features": X.columns.tolist(),
-        "target": target_column,
-        "task_type": task_type,
-        "model_name": model_name,
-        "params": params,
-        "mlflow_run_id": run_id,
-    }
-    
-    with open(model_path, "wb") as f:
-        pickle.dump(model_info, f)
-    
-    metrics.update(
-        {
             "model_path": str(model_path),
             "train_samples": len(X_train),
             "test_samples": len(X_test),
             "features_used": X.columns.tolist(),
-        }
-    )
-    
-    return metrics
+        })
+        
+        return metrics
 
 
 def predict(df: pd.DataFrame, model_path: str) -> pd.DataFrame:
-    """Run predictions using a stored model artifact.
-    
-    Args:
-        df: DataFrame with features
-        model_path: Path to pickled model
-        
-    Returns:
-        DataFrame with predictions added
-    """
+    """Run predictions using a stored model artifact."""
     # Load model info
     with open(model_path, "rb") as f:
         model_info = pickle.load(f)
@@ -441,13 +427,14 @@ def predict(df: pd.DataFrame, model_path: str) -> pd.DataFrame:
     
     return result
 
+
 def predict_from_mlflow(df: pd.DataFrame, run_id: str) -> pd.DataFrame:
     """Run predictions using a model from MLflow."""
     # Load model from MLflow
     model_uri = f"runs:/{run_id}/model"
     model = mlflow.sklearn.load_model(model_uri)
     
-    # Try to load label encoder
+    # Try to load label encoder if exists
     label_encoder = None
     try:
         encoder_path = mlflow.artifacts.download_artifacts(
@@ -480,6 +467,7 @@ def predict_from_mlflow(df: pd.DataFrame, run_id: str) -> pd.DataFrame:
     
     return result
 
+
 def load_model_info(model_path: str) -> dict[str, Any]:
     """Load model metadata without the model object."""
     with open(model_path, "rb") as f:
@@ -491,4 +479,36 @@ def load_model_info(model_path: str) -> dict[str, Any]:
         "target": model_info["target"],
         "features": model_info["features"],
         "params": model_info["params"],
+        "mlflow_run_id": model_info.get("mlflow_run_id"),
     }
+
+
+def get_mlflow_runs(limit: int = 50) -> pd.DataFrame:
+    """Get recent MLflow runs for the experiment."""
+    client = mlflow.tracking.MlflowClient()
+    experiment = client.get_experiment_by_name(MLFLOW_EXPERIMENT_NAME)
+    
+    if experiment is None:
+        return pd.DataFrame()
+    
+    runs = client.search_runs(
+        experiment_ids=[experiment.experiment_id],
+        order_by=["start_time DESC"],
+        max_results=limit
+    )
+    
+    runs_data = []
+    for run in runs:
+        runs_data.append({
+            "run_id": run.info.run_id,
+            "run_name": run.data.tags.get("mlflow.runName", ""),
+            "model_name": run.data.params.get("model_name", ""),
+            "task_type": run.data.params.get("task_type", ""),
+            "accuracy_test": run.data.metrics.get("accuracy_test"),
+            "r2_test": run.data.metrics.get("r2_test"),
+            "mae_test": run.data.metrics.get("mae_test"),
+            "start_time": pd.Timestamp(run.info.start_time, unit='ms'),
+            "status": run.info.status,
+        })
+    
+    return pd.DataFrame(runs_data)
