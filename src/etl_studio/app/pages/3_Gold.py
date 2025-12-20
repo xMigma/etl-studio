@@ -1,6 +1,7 @@
 """Streamlit page for Gold layer integration workflows."""
 
 from __future__ import annotations
+from typing import Optional
 
 import pandas as pd
 import streamlit as st
