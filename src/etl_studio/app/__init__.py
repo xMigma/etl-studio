@@ -23,6 +23,11 @@ _GLOBAL_CSS = """
     [data-testid="stSidebarNav"] a span {
         font-size: 1.05rem !important;
     }
+
+    /* Igualar altura de botones en tarjetas */
+    .stLinkButton {
+        height: 38px;
+    }
 </style>
 """
 
