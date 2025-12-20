@@ -96,9 +96,12 @@ def generar_sql(pregunta):
     - Solo devuelve el SQL, nada más
     - No uses punto y coma al final
     - Usa sintaxis de PostgreSQL
+    - IMPORTANTE: Todas las tablas están en el esquema 'gold', SIEMPRE usa el prefijo gold.nombre_tabla
     Ejemplos:
     Pregunta: "Muéstrame todos los usuarios"
-    SQL: SELECT * FROM users
+    SQL: SELECT * FROM gold.users
+    Pregunta: "Cuántas filas tiene la tabla orders?"
+    SQL: SELECT COUNT(*) FROM gold.orders
     Pregunta: {pregunta}
     SQL:"""
 

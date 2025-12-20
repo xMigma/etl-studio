@@ -104,6 +104,45 @@ def delete_table(table_name: str, schema: str) -> bool:
     return True
 
 
+def join_tables_sql(left_table: str, right_table: str, left_schema: str, right_schema: str, left_key: str, 
+    right_key: str, output_table: str, output_schema: str, join_type: str = "inner") -> None:
+    """Executes the Join SQL query for big tables"""
+    join_map = {
+        "inner": "INNER JOIN",
+        "left": "LEFT JOIN",
+        "right": "RIGHT JOIN",
+        "outer": "FULL OUTER JOIN",
+    }
+    join_clause = join_map.get(join_type, "INNER JOIN")
+    
+    engine = get_engine()
+    
+    with engine.connect() as conn:
+        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {output_schema}"))
+        conn.execute(text(f"DROP TABLE IF EXISTS {output_schema}.{output_table}"))
+        
+        # Use USING clause if both keys are the same to avoid duplicate columns
+        if left_key == right_key:
+            query = text(f"""
+                CREATE TABLE {output_schema}.{output_table} AS
+                SELECT *
+                FROM {left_schema}.{left_table}
+                {join_clause} {right_schema}.{right_table}
+                USING ({left_key})
+            """)
+        else:
+            query = text(f"""
+                CREATE TABLE {output_schema}.{output_table} AS
+                SELECT *
+                FROM {left_schema}.{left_table} AS l
+                {join_clause} {right_schema}.{right_table} AS r
+                ON l.{left_key} = r.{right_key}
+            """)
+        
+        conn.execute(query)
+        conn.commit()
+
+
 def save_table(df: pd.DataFrame, table_name: str, schema: str) -> None:
     """Save a DataFrame to a specific schema."""
     cleaned_name = clean_table_name(table_name)
@@ -111,8 +150,7 @@ def save_table(df: pd.DataFrame, table_name: str, schema: str) -> None:
     with engine.connect() as conn:
         conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
         conn.commit()
-    
-    # Normalize column names to avoid PostgreSQL case-sensitivity issues
+
     df_normalized = df.copy()
     df_normalized.columns = [col.lower().replace(" ", "_").replace("-", "_") for col in df.columns]
     

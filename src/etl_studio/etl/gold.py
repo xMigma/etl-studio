@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from etl_studio.postgres.gold import get_table_db, to_gold_db, get_table_names_db, delete_table_db
+from etl_studio.postgres.gold import get_table_db, to_gold_db, get_table_names_db, delete_table_db, join_tables_db
 
 
 def join_tables(
@@ -16,30 +16,61 @@ def join_tables(
     join_type: str = "inner",
     preview: bool = False
 ) -> pd.DataFrame:
-    """Join two tables from specified sources. """
-
-    left_df = get_table_db(left_table, left_source, preview=preview)
-    right_df = get_table_db(right_table, right_source, preview=preview)
+    """Join two tables from specified sources."""
+    result_table_name = f"{left_table}_{right_table}_joined"
     
-    if left_key not in left_df.columns:
-        raise ValueError(f"Column '{left_key}' not found in {left_table}")
-    if right_key not in right_df.columns:
-        raise ValueError(f"Column '{right_key}' not found in {right_table}")
+    if preview:
+        # Para preview: ejecutar JOIN en SQL pero SIN guardar tabla
+        # Solo retornar el resultado temporal
+        from etl_studio.postgres.postgres import get_engine
+        from sqlalchemy import text
+        
+        engine = get_engine()
+        
+        # Mapear tipo de JOIN
+        join_map = {
+            "inner": "INNER JOIN",
+            "left": "LEFT JOIN",
+            "right": "RIGHT JOIN",
+            "outer": "FULL OUTER JOIN"
+        }
+        join_clause = join_map.get(join_type, "INNER JOIN")
+        
+        # Query temporal sin crear tabla - solo SELECT con LIMIT
+        if left_key == right_key:
+            query = text(f"""
+                SELECT * 
+                FROM {left_source}.{left_table}
+                {join_clause} {right_source}.{right_table}
+                USING ({left_key})
+                LIMIT 10
+            """)
+        else:
+            query = text(f"""
+                SELECT * 
+                FROM {left_source}.{left_table} AS l
+                {join_clause} {right_source}.{right_table} AS r
+                ON l.{left_key} = r.{right_key}
+                LIMIT 10
+            """)
+        
+        return pd.read_sql(query, engine)
     
-    result_df = pd.merge(
-        left_df,
-        right_df,
-        left_on=left_key,
-        right_on=right_key,
-        how=join_type,
-        suffixes=("_left", "_right")
-    )
-    
-    if not preview:
-        result_table_name = f"{left_table}_{right_table}_joined"
-        to_gold_db(result_df, result_table_name)
-    
-    return result_df
+    else:
+        # Para guardar: ejecutar JOIN completo y crear tabla en Gold
+        join_tables_db(
+            left_table, 
+            right_table, 
+            left_source, 
+            right_source, 
+            left_key, 
+            right_key, 
+            result_table_name,
+            "gold",
+            join_type
+        )
+        
+        return get_table_db(result_table_name, "gold", preview=True)
 
 
 def get_gold_tables_info() -> list[dict]:
