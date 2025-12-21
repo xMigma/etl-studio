@@ -635,17 +635,13 @@ def show() -> None:
                         try:
                             df_pred, _ = fetch_table_csv("gold", pred_table)
                             
-                            # Get features from the run
-                            import mlflow
-                            client = mlflow.tracking.MlflowClient()
-                            run = client.get_run(selected_run_id)
-                            features_str = run.data.params.get("features", "")
-                            features = features_str.split(",") if features_str else df_pred.columns.tolist()
+                            if df_pred is None:
+                                st.error("No se pudo cargar el dataset")
+                                return
                             
-                            # Select only the features used in training
-                            df_for_pred = df_pred[features]
-                            
-                            predictions = model.predict_from_mlflow(df_for_pred, selected_run_id)
+                            # Pass the entire dataframe - the predict_from_mlflow function
+                            # will handle feature encoding and selection
+                            predictions = model.predict_from_mlflow(df_pred, selected_run_id)
                             
                             st.success(f"{len(predictions)} predicciones generadas")
                             

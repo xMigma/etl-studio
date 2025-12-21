@@ -255,14 +255,33 @@ def train_model(
         
         model_class = models_dict[model_name]["class"]
         
+        # Apply feature encoders if provided
+        df_processed = df.copy()
+        if feature_encoders:
+            df_processed = apply_feature_encoders(df_processed, feature_encoders)
+        
         # Prepare data
         if selected_features:
-            X = df[selected_features]
-            mlflow.log_param("n_features", len(selected_features))
-            mlflow.log_param("features", ",".join(selected_features))
-        else:
-            X = df.drop(columns=[target_column])
+            # Get the encoded feature names if encoders were applied
+            if feature_encoders:
+                # Map selected features through the encoders
+                encoded_features = []
+                for feat in selected_features:
+                    if feat in feature_encoders and feature_encoders[feat]["type"] == "onehot":
+                        # Add all one-hot encoded columns
+                        encoded_features.extend(feature_encoders[feat]["columns"])
+                    else:
+                        # Keep original feature name
+                        encoded_features.append(feat)
+                X = df_processed[encoded_features]
+            else:
+                X = df_processed[selected_features]
             mlflow.log_param("n_features", len(X.columns))
+            mlflow.log_param("features", ",".join(X.columns.tolist()))
+        else:
+            X = df_processed.drop(columns=[target_column])
+            mlflow.log_param("n_features", len(X.columns))
+            mlflow.log_param("features", ",".join(X.columns.tolist()))
         
         y = df[target_column]
         
@@ -391,6 +410,14 @@ def train_model(
             mlflow.log_artifact(encoder_path)
             Path(encoder_path).unlink()
         
+        # Save feature encoders if they exist
+        if feature_encoders is not None:
+            feature_encoder_path = "feature_encoders.pkl"
+            with open(feature_encoder_path, "wb") as f:
+                pickle.dump(feature_encoders, f)
+            mlflow.log_artifact(feature_encoder_path)
+            Path(feature_encoder_path).unlink()
+        
         # Get run info
         run_id = run.info.run_id
         metrics["mlflow_run_id"] = run_id
@@ -497,8 +524,39 @@ def predict_from_mlflow(df: pd.DataFrame, run_id: str) -> pd.DataFrame:
     except:
         pass
     
+    # Try to load feature encoders if exist
+    feature_encoders = None
+    try:
+        feature_encoder_path = mlflow.artifacts.download_artifacts(
+            run_id=run_id,
+            artifact_path="feature_encoders.pkl"
+        )
+        with open(feature_encoder_path, "rb") as f:
+            feature_encoders = pickle.load(f)
+    except:
+        pass
+    
+    # Apply feature encoders if they exist
+    df_processed = df.copy()
+    if feature_encoders:
+        df_processed = apply_feature_encoders(df_processed, feature_encoders)
+    
+    # Get the features that were used during training
+    client = mlflow.tracking.MlflowClient()
+    run = client.get_run(run_id)
+    features_str = run.data.params.get("features", "")
+    
+    if features_str:
+        expected_features = features_str.split(",")
+        # Select only the features that the model expects
+        # This handles the case where the dataframe has extra columns
+        missing_features = [f for f in expected_features if f not in df_processed.columns]
+        if missing_features:
+            raise ValueError(f"Missing features required by the model: {missing_features}")
+        df_processed = df_processed[expected_features]
+    
     # Predict
-    predictions = model.predict(df)
+    predictions = model.predict(df_processed)
     
     # Decode labels if necessary
     if label_encoder is not None:
@@ -510,7 +568,7 @@ def predict_from_mlflow(df: pd.DataFrame, run_id: str) -> pd.DataFrame:
     
     # Add prediction probabilities for classification
     if hasattr(model, "predict_proba"):
-        probas = model.predict_proba(df)
+        probas = model.predict_proba(df_processed)
         for i, class_label in enumerate(
             label_encoder.classes_ if label_encoder else range(probas.shape[1])
         ):
