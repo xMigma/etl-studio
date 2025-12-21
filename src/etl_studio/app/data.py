@@ -75,7 +75,7 @@ def post(
 def fetch_table_csv(layer: Layer, table_name: str, preview: bool = False) -> tuple[Optional[pd.DataFrame], bool]:
     """Fetch table CSV from a layer. Falls back to mock CSV if API unavailable."""
     try:
-        response = requests.get(f"{API_BASE_URL}/{layer}/tables/{table_name}?preview={str(preview).lower()}", timeout=5)
+        response = requests.get(f"{API_BASE_URL}/{layer}/tables/{table_name}/?preview={str(preview).lower()}", timeout=5)
         if response.status_code == 200:
             return pd.read_csv(io.StringIO(response.text)), False
     except requests.exceptions.RequestException:

@@ -85,7 +85,7 @@ def get_gold_tables_info() -> list[dict]:
 
 def get_table(table_name: str, preview: bool = False) -> str:
     """Get content of a specific table as CSV string."""
-    df = get_table_db(table_name, "gold", preview=preview)
+    df = get_table_db(table_name, schema="gold", preview=preview)
     return df.to_csv(index=False)
 
 
