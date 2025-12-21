@@ -6,7 +6,7 @@ import os
 from functools import lru_cache
 
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
 
 
@@ -59,34 +59,32 @@ def get_table_preview(table_name: str, schema: str, limit: int = 5) -> pd.DataFr
 
 
 def get_table_names(schema: str) -> list[str]:
-    """Get all table names from a specific schema."""
+    """Get all table names from a specific schema using SQLAlchemy Inspector."""
     engine = get_engine()
-    
-    with engine.connect() as conn:
-        result = conn.execute(text("""
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = :schema
-            ORDER BY table_name
-        """), {"schema": schema})
-        
-        return [row[0] for row in result]
+    inspector = inspect(engine)
+    return inspector.get_table_names(schema=schema)
 
 
 def table_exists(table_name: str, schema: str) -> bool:
-    """Check if a table exists in a specific schema."""
+    """Check if a table exists in a specific schema using SQLAlchemy Inspector."""
     cleaned_name = clean_table_name(table_name)
     engine = get_engine()
+    inspector = inspect(engine)
     
-    with engine.connect() as conn:
-        result = conn.execute(text("""
-            SELECT EXISTS (
-                SELECT 1 FROM information_schema.tables 
-                WHERE table_schema = :schema AND table_name = :table_name
-            )
-        """), {"schema": schema, "table_name": cleaned_name})
-        
-        return result.scalar()
+    return inspector.has_table(cleaned_name, schema=schema)
+
+
+def get_table_columns(table_name: str, schema: str) -> list[dict]:
+    """Get column information for a table using SQLAlchemy Inspector."""
+    cleaned_name = clean_table_name(table_name)
+    engine = get_engine()
+    inspector = inspect(engine)
+    
+    if not inspector.has_table(cleaned_name, schema=schema):
+        return []
+    
+    columns = inspector.get_columns(cleaned_name, schema=schema)
+    return columns
 
 
 def delete_table(table_name: str, schema: str) -> bool:
@@ -98,7 +96,7 @@ def delete_table(table_name: str, schema: str) -> bool:
     engine = get_engine()
     
     with engine.connect() as conn:
-        conn.execute(text(f"DROP TABLE {schema}.{cleaned_name}"))
+        conn.execute(text(f"DROP TABLE IF EXISTS {schema}.{cleaned_name}"))
         conn.commit()
     
     return True

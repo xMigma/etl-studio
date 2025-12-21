@@ -2,32 +2,30 @@
 
 import pandas as pd
 from groq import Groq
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 from typing import Optional, Tuple
 
-from etl_studio.postgres.postgres import get_engine
+from etl_studio.postgres.postgres import get_engine, get_table_names, get_table_columns
 
 
 def obtener_esquema():
-    """Obtiene el esquema de la bbdd"""
-    engine = get_engine()
-    inspector = inspect(engine)
+    """Obtiene el esquema de la bbdd usando SQLAlchemy Inspector"""
     schema = "Tablas en la base de datos:\n\n"
     
-    for schema_name in ['gold']:
-        tables = inspector.get_table_names(schema=schema_name)
+    schema_name = "gold"
+    tables = get_table_names(schema_name)
 
-        if tables:
-            schema += f"Esquema: {schema_name}\n"
-            
-            for table_name in tables:
-                schema += f"Tabla: {table_name}\n"
-                
-                columns = inspector.get_columns(table_name, schema=schema_name)
-                for col in columns:
-                    nullable = "NULL" if col["nullable"] else "NOT NULL"
-                    schema += f"  - {col['name']} ({col['type']}) {nullable}\n"
+    if tables:
+        schema += f"Esquema: {schema_name}\n"
         
+        for table_name in tables:
+            schema += f"Tabla: {table_name}\n"
+            
+            columns = get_table_columns(table_name, schema_name)
+            for col in columns:
+                nullable = "NULL" if col["nullable"] else "NOT NULL"
+                schema += f"  - {col['name']} ({col['type']}) {nullable}\n"
+    
         schema += "\n"
     
     return schema
