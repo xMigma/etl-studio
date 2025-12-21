@@ -85,27 +85,6 @@ services:
       - ./src:/app/src
       - ./data:/app/data
 
-  chatbot:
-    build:
-      context: .
-      dockerfile: src/etl_studio/ai/Dockerfile.chatbot
-    container_name: etl-studio-chatbot
-    env_file:
-      - .env
-    ports:
-      - "8000:8000"
-    depends_on:
-      base:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      init-db:
-        condition: service_completed_successfully
-    networks:
-      - etl-network
-    restart: unless-stopped
-
-
 volumes:
   postgres_data:
     driver: local
