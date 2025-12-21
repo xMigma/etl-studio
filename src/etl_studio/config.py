@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import os
 
-# API Configuration
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:80")
 
 # MLflow Configuration
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
-# MLFLOW_TRACKING_URI_LOCAL is for browser links (localhost)
 MLFLOW_TRACKING_URI_LOCAL = os.getenv("MLFLOW_TRACKING_URI_LOCAL", "http://localhost:5000")
 MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "etl-studio-experiments")
 

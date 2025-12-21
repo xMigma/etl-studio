@@ -1,21 +1,91 @@
-"""SQL chatbot helpers for Gold data."""
-
-from __future__ import annotations
-
+import os
 import pandas as pd
+from dotenv import load_dotenv
+from groq import Groq
+
+from etl_studio.ai.chatbot import (
+    obtener_esquema,
+    es_pregunta_esquema,
+    responder_pregunta_esquema,
+    generar_sql,
+    ejecutar_sql,
+    explicar_resultados,
+)
+
+load_dotenv()
+
+# Variables globales
+client = None
+schema_text = None
 
 
-def generate_sql_from_prompt(prompt: str, catalog: dict[str, str]) -> str:
-    """Generate a SQL statement from a natural language prompt."""
+def inicializar():
+    """Inicializa el agente chatbot"""
+    global client, schema_text
+    
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("No encuentro GROQ_API_KEY en el .env")
+    
+    client = Groq(api_key=api_key)
+    schema_text = obtener_esquema()
 
-    # TODO: Integrate LLM and schema grounding logic using `catalog` metadata.
-    print(f"[Chatbot] Prompt received: {prompt}")
-    return "SELECT * FROM some_table LIMIT 10;"
 
+def chat(pregunta: str) -> dict:
+    """Metodo principal para el chatbot"""
+    if client is None:
+        inicializar()
+    
+    if es_pregunta_esquema(pregunta):
+        respuesta = responder_pregunta_esquema(pregunta, client, schema_text)
+        return {
+            "sql": "",
+            "resultados": pd.DataFrame(),
+            "error": None,
+            "respuesta": respuesta,
+            "tipo": "esquema",
+        }
+    
+    sql, error = generar_sql(pregunta, client, schema_text)
+    
+    if error:
+        return {
+            "sql": "",
+            "resultados": pd.DataFrame(),
+            "error": error,
+            "respuesta": "",
+            "tipo": "datos",
+        }
+    
+    resultados, is_dangerous, error = ejecutar_sql(sql)
 
-def run_sql_query(sql: str, gold_path: str) -> pd.DataFrame:
-    """Execute the generated SQL against the Gold layer."""
+    if is_dangerous:
+        return {
+            "pregunta": pregunta,
+            "sql": sql,
+            "resultados": pd.DataFrame(),
+            "requiere_confirmacion": True,
+            "respuesta": "",
+            "tipo": "datos",
+            "error": error,
+        }
+    
+    if error:
+        return {
+            "sql": sql,
+            "resultados": pd.DataFrame(),
+            "error": error,
+            "respuesta": "",
+            "tipo": "datos",
+        }
+    
+    respuesta = explicar_resultados(pregunta, sql, resultados, client)
+    
+    return {
+        "sql": sql,
+        "resultados": resultados,
+        "error": None,
+        "respuesta": respuesta,
+        "tipo": "datos",
+    }
 
-    # TODO: Connect to warehouse / duckdb / sqlite built from gold_path files.
-    print(f"[Chatbot] Running SQL: {sql} on {gold_path}")
-    return pd.DataFrame()

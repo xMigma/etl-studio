@@ -7,8 +7,9 @@ from typing import Any, Literal, Optional
 
 import pandas as pd
 import requests
+import streamlit as st
 
-from etl_studio.app.mock_data import MOCK_TABLES, MOCK_RULES, get_mock_csv
+from etl_studio.app.mock_data import MOCK_TABLES, MOCK_RULES, MOCK_AGGREGATIONS, get_mock_csv
 from etl_studio.config import API_BASE_URL
 
 
@@ -33,13 +34,26 @@ def fetch(layer: Layer, resource: Resource) -> tuple[Any, bool]:
     return MOCK_DATA.get(resource), True
 
 
+@st.cache_data(show_spinner=False)
+def fetch_aggregations() -> tuple[list[dict], bool]:
+    """Fetch available aggregation functions. Falls back to mock if API unavailable."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/silver/aggregations", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("aggregations", []), False
+    except requests.exceptions.RequestException:
+        pass
+    return MOCK_AGGREGATIONS, True
+
+
 def post(
     layer: Layer, 
     resource: str, 
     payload: Optional[dict] = None, 
     files: Optional[list[tuple[str, bytes]]] = None,
     timeout: int = 30
-) -> tuple[Any, bool]:
+) -> tuple[Optional[str], bool]:
     """POST to a layer endpoint. Can send JSON payload or files. Returns (response_json, success)."""
     try:
         kwargs: dict[str, Any] = {"timeout": timeout}
@@ -49,13 +63,15 @@ def post(
             kwargs["json"] = payload
         
         response = requests.post(f"{API_BASE_URL}/{layer}/{resource}", **kwargs)
-        if response.status_code == 201:
-            return response.json(), True
+        
+        if response.status_code == 200 or response.status_code == 201:
+            return response.text, True
     except requests.exceptions.RequestException:
         pass
     return None, False
 
 
+@st.cache_data(show_spinner=False)
 def fetch_table_csv(layer: Layer, table_name: str, preview: bool = False) -> tuple[Optional[pd.DataFrame], bool]:
     """Fetch table CSV from a layer. Falls back to mock CSV if API unavailable."""
     try:

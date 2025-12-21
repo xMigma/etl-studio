@@ -2,14 +2,109 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Callable
 
 import pandas as pd
+from etl_studio.postgres.silver import get_table_db, save_table_db, get_table_names_db, delete_table_db
+
+def fillna(df: pd.DataFrame, column: str, value: Any) -> pd.DataFrame:
+    """Fill null values in a specific column with the given value."""
+    df[column] = df[column].fillna(value)
+    return df
+
+def drop_nulls(df: pd.DataFrame, column: str | None = None) -> pd.DataFrame:
+    """Remove rows with null values. If column is specified, only check that column."""
+    if column:
+        return df.dropna(subset=[column])
+    return df.dropna()
+
+def drop_duplicates(df: pd.DataFrame, column: str | None = None) -> pd.DataFrame:
+    """Remove duplicate rows. If column is specified, only check that column."""
+    if column:
+        return df.drop_duplicates(subset=[column])
+    return df.drop_duplicates()
+
+def lowercase(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    """Convert text in a column to lowercase."""
+    if df[column].dtype == object:
+        df[column] = df[column].str.lower()
+    return df
+
+def rename_column(df: pd.DataFrame, column: str, new_name: str) -> pd.DataFrame:
+    """Rename a column."""
+    return df.rename(columns={column: new_name})
+
+def drop_column(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    """Delete a column from the DataFrame."""
+    return df.drop(columns=[column])
+
+def groupby_agg(df: pd.DataFrame, group_columns: list[str], aggregations: dict[str,str]) -> pd.DataFrame:
+    """Group by a list of columns with given aggregations"""
+    result = df.groupby(group_columns).agg(aggregations)
+
+    new_columns = {}
+    for col, func in aggregations.items():
+        new_columns[col] = f"{col}_{func}"
+
+    return result.rename(columns=new_columns).reset_index()
+
+OperationFn = Callable[[pd.DataFrame, dict[str, Any]], pd.DataFrame]
+
+OP_FUNCS: dict[str, OperationFn] = {
+    "fillna": lambda df, p: fillna(df, p["column"], p["value"]),
+    "drop_nulls": lambda df, p: drop_nulls(df, p.get("column")),
+    "drop_duplicates": lambda df, p: drop_duplicates(df, p.get("column")),
+    "lowercase": lambda df, p: lowercase(df, p["column"]),
+    "rename_column": lambda df, p: rename_column(df, p["column"], p["new_name"]),
+    "drop_column": lambda df, p: drop_column(df, p["column"]),
+    "groupby": lambda df, p: groupby_agg(df, p["group_columns"], p["aggregations"]),
+}
+
+def apply_operation(df: pd.DataFrame, operation: str, params: dict[str, Any]) -> pd.DataFrame:
+    """Apply a single operation to the DataFrame based on operation key."""
+    try:
+        op = OP_FUNCS[operation]
+    except KeyError:
+        raise ValueError(f"Unknown operation: {operation}")
+
+    return op(df, params)
+
+def dispatch_operations(
+    table_name: str,
+    operations: list[dict[str, Any]],
+    preview: bool = True
+) -> pd.DataFrame:
+    """Get a table from bronze, apply cleaning operations, and optionally save to silver."""
+    df = get_table_db(table_name, "bronze", preview=preview)
+
+    for op in operations:
+        operation = op["operation"]
+        params = op.get("params", {})
+        df = apply_operation(df, operation, params)
+
+    if not preview:
+        save_table_db(df, table_name)
+
+    return df
+
+def get_silver_tables_info() -> list[dict]:
+    """Get all silver table names with their row counts."""
+    table_names = get_table_names_db()
+    result = []
+    for table_name in table_names:
+        df = get_table_db(table_name, "silver", preview=False)
+        result.append({"name": table_name, "rows": len(df)})
+    return result
 
 
-def clean_data(df: pd.DataFrame, recipe: Optional[dict[str, Any]] = None) -> pd.DataFrame:
-    """Apply cleaning recipe to a DataFrame to produce Silver-quality data."""
+def get_table(table_name: str, preview: bool = False) -> str:
+    """Get content of a specific table as CSV string."""
+    df = get_table_db(table_name, "silver", preview=preview)
+    return df.to_csv(index=False)
 
-    # TODO: Implement actual cleaning steps (dedupe, type casting, null handling, etc.).
-    print(f"[Silver] Cleaning placeholder with recipe={recipe}")
-    return df.copy()
+
+def delete_table(table_name: str) -> bool:
+    """Delete a specific table from the silver layer."""
+    return delete_table_db(table_name)
+
+

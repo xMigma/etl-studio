@@ -14,6 +14,12 @@ setup(
     install_requires=[
         "streamlit>=1.38.0",
         "pandas>=2.2.0",
+        "fastapi[standard]>=0.115.0",
+        "uvicorn[standard]>=0.32.0",
+        "psycopg2-binary>=2.9.11",
+        "python-dotenv>=1.2.1",
+        "SQLAlchemy>=2.0.44",
+        "groq>=0.4.0",
     ],
     extras_require={
         "dev": [

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
 from fastapi.responses import Response
 
-from etl_studio.etl.bronze import load_csv_to_bronze, get_bronze_table_names, get_table_content, delete_table
+from etl_studio.etl.bronze import load_csv_to_bronze, get_bronze_tables_info, get_table, delete_table
 from etl_studio.api.schemas.bronze import BronzeUploadResponse, BronzeTableName
 
 router_bronze = APIRouter(prefix="/bronze", tags=["bronze"])
@@ -41,8 +41,8 @@ async def upload_bronze_files(files: list[UploadFile] = File(...)):
 def list_bronze_tables():
     """Endpoint to list all table names in the bronze layer."""
     try:
-        table_names = get_bronze_table_names()
-        return table_names
+        tables_info = get_bronze_tables_info()
+        return [BronzeTableName(name=t["name"], rows=t["rows"]) for t in tables_info]
         
     except Exception as e:
         raise HTTPException(
@@ -63,7 +63,7 @@ def list_bronze_tables():
 def download_table_csv(table_name: str, preview: bool = False):
     """Download content of a specific bronze table as CSV file."""
     try:
-        csv_content = get_table_content(table_name, limit=300 if preview else None)
+        csv_content = get_table(table_name, preview=preview)
         
         headers = {}
         if not preview:

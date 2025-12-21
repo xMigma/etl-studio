@@ -1,87 +1,102 @@
-"""API routes for Gold layer operations."""
-
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import Response
-from pydantic import BaseModel
-
-from etl_studio.postgres.gold import (
-    get_table_names_db,
-    get_table_content_db,
-    save_table_db,
-    delete_table_db,
-)
+from etl_studio.api.schemas.gold import GoldJoinRequest, GoldTableName
+from etl_studio.etl.gold import join_tables, get_gold_tables_info, get_table, delete_table
 
 router_gold = APIRouter(prefix="/gold", tags=["gold"])
 
 
-class GoldTableName(BaseModel):
-    name: str
-    rows: int
-
-
-class SaveTableRequest(BaseModel):
-    name: str
-    data: list[dict]
-
-
-@router_gold.get("/tables/", response_model=list[GoldTableName])
-def list_gold_tables():
-    """List all tables in the Gold layer."""
+def _execute_join(request: GoldJoinRequest, preview: bool = False):
+    """Internal helper to execute a join operation."""
     try:
-        table_names = get_table_names_db()
-        return table_names
+        result_df = join_tables(
+            left_table=request.left_table,
+            right_table=request.right_table,
+            left_source=request.left_source,
+            right_source=request.right_source,
+            left_key=request.config.left_key,
+            right_key=request.config.right_key,
+            join_type=request.config.join_type,
+            preview=preview
+        )
+        
+        return result_df
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Validation error: {str(e)}"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving table names: {str(e)}",
+            detail=f"Error executing join: {str(e)}"
         )
 
 
-@router_gold.get(
-    "/tables/{table_name}",
-    response_class=Response,
-    responses={200: {"content": {"text/csv": {}}}},
-)
-def get_gold_table(table_name: str, preview: bool = False):
-    """Get content of a specific Gold table as CSV."""
+@router_gold.post("/join/")
+def join_gold_tables(request: GoldJoinRequest):
+    """Preview a join operation and return as CSV file."""
+    result_df = _execute_join(request, preview=True)
+    return Response(content=result_df.to_csv(index=False), media_type="text/csv")
+
+
+@router_gold.post("/apply/", status_code=status.HTTP_200_OK)
+def apply_gold_join(request: GoldJoinRequest):
+    """Apply a join operation and save the result to gold database."""
+    _execute_join(request, preview=False)
+
+
+@router_gold.get("/tables/", response_model=list[GoldTableName], status_code=status.HTTP_200_OK)
+def get_table_names():
+    """Get all table names from the gold schema."""
     try:
-        csv_content = get_table_content_db(table_name, limit=300 if preview else None)
-        return Response(content=csv_content, media_type="text/csv")
+        tables_info = get_gold_tables_info()
+        return [GoldTableName(name=t["name"], rows=t["rows"]) for t in tables_info]
+        
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving table: {str(e)}",
+            detail=f"Error retrieving table names: {str(e)}"
         )
 
 
-@router_gold.post("/tables/", status_code=status.HTTP_201_CREATED)
-def save_gold_table(request: SaveTableRequest):
-    """Save a new table to the Gold layer."""
+@router_gold.get("/tables/{table_name}/", status_code=status.HTTP_200_OK,)
+def get_table_content(table_name: str, preview: bool = False):
+    """Get the content of a table from the gold schema as CSV."""
     try:
-        save_table_db(request.name, request.data)
-        return {"status": "ok", "name": request.name}
+        csv_content = get_table(table_name, preview=preview)
+        
+        headers = {}
+        if not preview:
+            headers["Content-Disposition"] = f"attachment; filename={table_name}.csv"
+        
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers=headers
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error saving table: {str(e)}",
+            detail=f"Error retrieving table content: {str(e)}"
         )
 
 
 @router_gold.delete("/tables/{table_name}", status_code=status.HTTP_200_OK)
 def delete_gold_table(table_name: str):
-    """Delete a table from the Gold layer."""
+    """Endpoint to delete a specific table from the gold layer."""
     try:
-        deleted = delete_table_db(table_name)
-        if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Table '{table_name}' not found",
-            )
-        return {"status": "ok"}
-    except HTTPException:
-        raise
+        deleted = delete_table(table_name)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error deleting table: {str(e)}",
+            detail=f"Error deleting table: {str(e)}"
         )
+    
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Table '{table_name}' not found"
+        )
+    

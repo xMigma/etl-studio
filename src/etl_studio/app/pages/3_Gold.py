@@ -1,6 +1,8 @@
 """Streamlit page for Gold layer integration workflows."""
 
 from __future__ import annotations
+from typing import Optional
+from io import StringIO
 
 import pandas as pd
 import streamlit as st
@@ -12,20 +14,49 @@ from etl_studio.app.mock_data import JOIN_TYPES, apply_mock_join
 
 setup_page("Gold · ETL Studio")
 
-
-def save_gold_table(df: pd.DataFrame, name: str) -> bool:
-    """Save a Gold table. Uses API if available, otherwise saves to session state."""
-    post("gold", "tables", {"name": name, "data": df.to_dict(orient="records")})
+def execute_join(
+    left_table_name: str,
+    right_table_name: str,
+    config: dict[str, str],
+    save: bool = False,
+    output_table_name: str | None = None,
+    left_source: str = "silver",
+    right_source: str = "silver",
+) -> pd.DataFrame | tuple[bool, str]:
+    """Execute join operation. If save=True, saves to Gold and returns status."""
+    payload = {
+        "left_table": left_table_name,
+        "right_table": right_table_name,
+        "left_source": left_source,
+        "right_source": right_source,
+        "config": config,
+    }
     
-    # Siempre guardar en session_state para visualización local
-    if "gold_tables" not in st.session_state:
-        st.session_state.gold_tables = []
-    st.session_state.gold_tables.append({"name": name, "rows": len(df)})
-    if "gold_dataframes" not in st.session_state:
-        st.session_state.gold_dataframes = {}
-    st.session_state.gold_dataframes[name] = df
+    endpoint = "apply" if save else "join"
+    response, success = post("gold", endpoint, payload)
     
-    return True
+    if success and response:
+        if save:
+            table_name = output_table_name or f"{left_table_name}_{right_table_name}_joined"
+            return True, f"Table '{table_name}' saved successfully"
+        else:
+            return pd.read_csv(StringIO(response))
+    else:
+        left_df = st.session_state.gold_dataframes.get(left_table_name)
+        right_df = st.session_state.gold_dataframes.get(right_table_name)
+        result_df = apply_mock_join(left_df, right_df, config)
+        
+        if save:
+            table_name = output_table_name or f"{left_table_name}_{right_table_name}_joined"
+            if "gold_tables" not in st.session_state:
+                st.session_state.gold_tables = []
+            st.session_state.gold_tables.append({"name": table_name, "rows": len(result_df)})
+            if "gold_dataframes" not in st.session_state:
+                st.session_state.gold_dataframes = {}
+            st.session_state.gold_dataframes[table_name] = result_df
+            return True, f"Table '{table_name}' saved successfully"
+        else:
+            return result_df
 
 
 @st.dialog("Detalle de Tabla", width="large")
@@ -128,7 +159,7 @@ def show() -> None:
         if left_df is not None and right_df is not None:
             try:
                 config = {"left_key": left_key, "right_key": right_key, "join_type": join_type}
-                result_df = apply_mock_join(left_df, right_df, config)
+                result_df = execute_join(left_table, right_table, config, save=False)
                 
                 col_info1, col_info2, col_info3 = st.columns(3)
                 with col_info1:
@@ -147,9 +178,11 @@ def show() -> None:
                 with col_save:
                     if st.button("Guardar tabla Gold", type="primary", use_container_width=True, icon=":material/save:"):
                         table_name = output_name or f"{left_table}_{right_table}"
-                        success = save_gold_table(result_df, table_name)
+                        success, message = execute_join(
+                            left_table, right_table, config, save=True, output_table_name=table_name
+                        )
                         if success:
-                            st.success(f"Tabla '{table_name}' guardada en la capa Gold")
+                            st.success(message)
                         else:
                             st.error("Error al guardar la tabla")
                 

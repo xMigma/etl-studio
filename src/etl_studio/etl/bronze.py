@@ -3,30 +3,29 @@
 from __future__ import annotations
 
 import io
-import io
-from pathlib import Path
-from typing import Any, Optional
 
 import pandas as pd
 
-from etl_studio.postgres.bronze import get_table_content_db, to_bronze_db, get_table_names_db, delete_table_db
+from etl_studio.postgres.bronze import get_table_db, save_table_db, get_table_names_db, delete_table_db
 
 
 def load_csv_to_bronze(filename: str, content: bytes) -> None:
     """Parse CSV and load to bronze layer."""
     df = pd.read_csv(io.BytesIO(content))
-    to_bronze_db(filename, df)
+    save_table_db(df, filename)
 
-def get_bronze_table_names() -> list[dict]:
-    """Get all bronze table names."""
+def get_bronze_tables_info() -> list[dict]:
+    """Get all bronze table names with their row counts."""
     table_names = get_table_names_db()
-    return [{"name": name, "rows": get_table_content_db(name).shape[0]} for name in table_names]
+    result = []
+    for table_name in table_names:
+        df = get_table_db(table_name)
+        result.append({"name": table_name, "rows": len(df)})
+    return result
 
-def get_table_content(table_name: str, limit: Optional[int] = None) -> str:
+def get_table(table_name: str, preview: bool = False) -> str:
     """Get content of a specific table as CSV string."""
-    df = get_table_content_db(table_name)
-    if limit:
-        df = df.head(limit)
+    df = get_table_db(table_name, preview=preview)
     return df.to_csv(index=False)
 
 def delete_table(table_name: str) -> bool:
