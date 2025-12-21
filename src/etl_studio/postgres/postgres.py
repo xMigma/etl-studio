@@ -34,7 +34,12 @@ def get_engine() -> Engine:
 def clean_table_name(table_name: str) -> str:
     """Adapt the name of the table to a valid SQL identifier."""
     table_name = table_name.replace(".csv", "").lower()
-    return "".join(c if c.isalnum() or c == "_" else "_" for c in table_name)
+    cleaned = "".join(c if c.isalnum() or c == "_" else "_" for c in table_name)
+
+    if cleaned[0].isdigit():
+        cleaned = f"t_{cleaned}"
+    
+    return cleaned
 
 
 def get_table(table_name: str, schema: str, preview: bool = False) -> pd.DataFrame:
