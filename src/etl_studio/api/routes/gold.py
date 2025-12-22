@@ -41,7 +41,7 @@ def join_gold_tables(request: GoldJoinRequest):
     return Response(content=result_df.to_csv(index=False), media_type="text/csv")
 
 
-@router_gold.post("/apply/", status_code=status.HTTP_201_CREATED)
+@router_gold.post("/apply/", status_code=status.HTTP_200_OK)
 def apply_gold_join(request: GoldJoinRequest):
     """Apply a join operation and save the result to gold database."""
     _execute_join(request, preview=False)
@@ -83,7 +83,7 @@ def get_table_content(table_name: str, preview: bool = False):
         )
 
 
-@router_gold.delete("/tables/{table_name}", status_code=status.HTTP_204_NO_CONTENT)
+@router_gold.delete("/tables/{table_name}", status_code=status.HTTP_200_OK)
 def delete_gold_table(table_name: str):
     """Endpoint to delete a specific table from the gold layer."""
     try:

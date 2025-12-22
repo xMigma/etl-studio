@@ -73,7 +73,7 @@ def download_table_csv(table_name: str, preview: bool = False):
             detail=f"Error retrieving table content: {str(e)}"
         )
     
-@router_bronze.delete("/tables/{table_name}", status_code=status.HTTP_204_NO_CONTENT)
+@router_bronze.delete("/tables/{table_name}", status_code=status.HTTP_200_OK)
 def delete_bronze_table(table_name: str):
     """Endpoint to delete a specific table from the bronze layer."""
     try:

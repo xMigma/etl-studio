@@ -78,7 +78,7 @@ def get_table_content(table_name: str, preview: bool = False):
         )
 
 
-@router_silver.delete("/tables/{table_name}", status_code=status.HTTP_204_NO_CONTENT)
+@router_silver.delete("/tables/{table_name}", status_code=status.HTTP_200_OK)
 def delete_silver_table(table_name: str):
     """Endpoint to delete a specific table from the silver layer."""
     try:
