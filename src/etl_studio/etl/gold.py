@@ -14,22 +14,30 @@ def join_tables(
     left_key: str,
     right_key: str,
     join_type: str = "inner",
-    preview: bool = False
+    preview: bool = False,
+    output_table_name: Optional[str] = None
 ) -> pd.DataFrame:
     """Join two tables from specified sources."""
-    result_table_name = f"{left_table}_{right_table}_joined"
+    result_table_name = output_table_name or f"{left_table}_{right_table}_joined"
     
     if preview:
-        joined_df = join_tables_db(left_table, right_table, left_source, 
-                                   right_source, left_key, right_key, join_type, preview=True)
-    
+        return join_tables_db(
+            left_table, right_table,
+            left_source, right_source,
+            left_key, right_key,
+            join_type,
+            preview=True
+        )
     else:
-        joined_df = join_tables_db(left_table, right_table, left_source, 
-                                   right_source, left_key, right_key, join_type, preview=False)
-        
-        save_table_db(joined_df, result_table_name)
-
-    return joined_df
+        join_tables_db(
+            left_table, right_table,
+            left_source, right_source,
+            left_key, right_key,
+            join_type,
+            preview=False,
+            output_table_name=result_table_name
+        )
+        return None
 
 
 def get_gold_tables_info() -> list[dict]:
