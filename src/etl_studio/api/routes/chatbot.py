@@ -6,11 +6,6 @@ from etl_studio.api.schemas.chatbot import ChatRequest
 router_chatbot = APIRouter(prefix="/chatbot", tags=["chatbot"])
 
 
-@router_chatbot.on_event("startup")
-async def startup_event():
-    chatbot_sql.inicializar()
-
-
 @router_chatbot.get("/health")
 async def health():
     return {"status": "ok"}
