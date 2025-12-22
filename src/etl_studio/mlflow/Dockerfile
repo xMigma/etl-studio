@@ -1,13 +1,6 @@
-FROM python:3.10-slim
+FROM etl-studio-base:latest
 
 WORKDIR /mlflow
-
-# Install curl for health checks and MLflow dependencies
-RUN apt-get update && \
-    apt-get install -y curl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    pip install --no-cache-dir mlflow psycopg2-binary
 
 # Expose MLflow port
 EXPOSE 5000
