@@ -55,23 +55,15 @@ def get_table(table_name: str, schema: str, preview: bool = False) -> pd.DataFra
     return pd.read_sql(query, engine)
 
 
-def get_table_preview(table_name: str, schema: str, limit: int = 5) -> pd.DataFrame:
-    """Get a preview of a table from a specific schema (legacy, use get_table with preview=True)."""
-    cleaned_name = clean_table_name(table_name)
-    engine = get_engine()
-    query = text(f"SELECT * FROM {schema}.{cleaned_name} LIMIT :limit")
-    return pd.read_sql(query, engine, params={"limit": limit})
-
-
 def get_table_names(schema: str) -> list[str]:
-    """Get all table names from a specific schema using SQLAlchemy Inspector."""
+    """Get all table names from a specific schema."""
     engine = get_engine()
     inspector = inspect(engine)
     return inspector.get_table_names(schema=schema)
 
 
 def table_exists(table_name: str, schema: str) -> bool:
-    """Check if a table exists in a specific schema using SQLAlchemy Inspector."""
+    """Check if a table exists in a specific schema."""
     cleaned_name = clean_table_name(table_name)
     engine = get_engine()
     inspector = inspect(engine)
@@ -80,7 +72,7 @@ def table_exists(table_name: str, schema: str) -> bool:
 
 
 def get_table_columns(table_name: str, schema: str) -> list[dict]:
-    """Get column information for a table using SQLAlchemy Inspector."""
+    """Get column information for a table."""
     cleaned_name = clean_table_name(table_name)
     engine = get_engine()
     inspector = inspect(engine)
@@ -105,45 +97,6 @@ def delete_table(table_name: str, schema: str) -> bool:
         conn.commit()
     
     return True
-
-
-def join_tables_sql(left_table: str, right_table: str, left_schema: str, right_schema: str, left_key: str, 
-    right_key: str, output_table: str, output_schema: str, join_type: str = "inner") -> None:
-    """Executes the Join SQL query for big tables"""
-    join_map = {
-        "inner": "INNER JOIN",
-        "left": "LEFT JOIN",
-        "right": "RIGHT JOIN",
-        "outer": "FULL OUTER JOIN",
-    }
-    join_clause = join_map.get(join_type, "INNER JOIN")
-    
-    engine = get_engine()
-    
-    with engine.connect() as conn:
-        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {output_schema}"))
-        conn.execute(text(f"DROP TABLE IF EXISTS {output_schema}.{output_table}"))
-        
-        # Use USING clause if both keys are the same to avoid duplicate columns
-        if left_key == right_key:
-            query = text(f"""
-                CREATE TABLE {output_schema}.{output_table} AS
-                SELECT *
-                FROM {left_schema}.{left_table}
-                {join_clause} {right_schema}.{right_table}
-                USING ({left_key})
-            """)
-        else:
-            query = text(f"""
-                CREATE TABLE {output_schema}.{output_table} AS
-                SELECT *
-                FROM {left_schema}.{left_table} AS l
-                {join_clause} {right_schema}.{right_table} AS r
-                ON l.{left_key} = r.{right_key}
-            """)
-        
-        conn.execute(query)
-        conn.commit()
 
 
 def save_table(df: pd.DataFrame, table_name: str, schema: str) -> None:

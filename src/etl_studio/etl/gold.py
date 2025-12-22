@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from etl_studio.postgres.gold import get_table_db, to_gold_db, get_table_names_db, delete_table_db, join_tables_db
+from etl_studio.postgres.gold import get_table_db, get_table_names_db, delete_table_db, save_table_db, join_tables_db
 
 
 def join_tables(
@@ -20,57 +20,16 @@ def join_tables(
     result_table_name = f"{left_table}_{right_table}_joined"
     
     if preview:
-        # Para preview: ejecutar JOIN en SQL pero SIN guardar tabla
-        # Solo retornar el resultado temporal
-        from etl_studio.postgres.postgres import get_engine
-        from sqlalchemy import text
-        
-        engine = get_engine()
-        
-        # Mapear tipo de JOIN
-        join_map = {
-            "inner": "INNER JOIN",
-            "left": "LEFT JOIN",
-            "right": "RIGHT JOIN",
-            "outer": "FULL OUTER JOIN"
-        }
-        join_clause = join_map.get(join_type, "INNER JOIN")
-        
-        # Query temporal sin crear tabla - solo SELECT con LIMIT
-        if left_key == right_key:
-            query = text(f"""
-                SELECT * 
-                FROM {left_source}.{left_table}
-                {join_clause} {right_source}.{right_table}
-                USING ({left_key})
-                LIMIT 10
-            """)
-        else:
-            query = text(f"""
-                SELECT * 
-                FROM {left_source}.{left_table} AS l
-                {join_clause} {right_source}.{right_table} AS r
-                ON l.{left_key} = r.{right_key}
-                LIMIT 10
-            """)
-        
-        return pd.read_sql(query, engine)
+        joined_df = join_tables_db(left_table, right_table, left_source, 
+                                   right_source, left_key, right_key, join_type, preview=True)
     
     else:
-        # Para guardar: ejecutar JOIN completo y crear tabla en Gold
-        join_tables_db(
-            left_table, 
-            right_table, 
-            left_source, 
-            right_source, 
-            left_key, 
-            right_key, 
-            result_table_name,
-            "gold",
-            join_type
-        )
+        joined_df = join_tables_db(left_table, right_table, left_source, 
+                                   right_source, left_key, right_key, join_type, preview=False)
         
-        return get_table_db(result_table_name, "gold", preview=True)
+        save_table_db(joined_df, result_table_name)
+
+    return joined_df
 
 
 def get_gold_tables_info() -> list[dict]:
