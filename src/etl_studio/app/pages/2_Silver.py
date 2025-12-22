@@ -7,7 +7,7 @@ import streamlit as st
 import json
 
 from etl_studio.app import setup_page
-from etl_studio.app.components import show_table_detail_dialog
+from etl_studio.app.components import show_table_detail_dialog, show_confirm_delete_dialog
 from etl_studio.app.data import fetch, fetch_table_csv, post, fetch_aggregations
 from etl_studio.app.mock_data import apply_mock_rules
 
@@ -107,9 +107,15 @@ def clear_rules_for_table(table_name: str, df_original: pd.DataFrame) -> None:
 
 
 @st.dialog("Detalle de Tabla", width="large")
-def show_table_detail(table_name: str) -> None:
+def show_table_detail(table_name: str, layer: str = "bronze") -> None:
     """Display table details in a dialog."""
-    show_table_detail_dialog(table_name, layer="bronze")
+    show_table_detail_dialog(table_name, layer=layer)
+
+
+@st.dialog("Confirmar eliminación")
+def confirm_delete(table_name: str, layer: str = "silver") -> None:
+    """Display confirmation dialog for table deletion."""
+    show_confirm_delete_dialog(table_name, layer=layer)
 
 
 def show() -> None:
@@ -325,15 +331,51 @@ def show() -> None:
                 
     st.divider()
     
-    if st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:"):
-        applied_rules = get_applied_rules(selected_table)
-        operations = rules_to_operations(applied_rules)
-        payload = {"table_name": selected_table, "operations": operations}
-        _, success = post("silver", "apply", payload)
-        if success:
-            st.success("Cambios guardados correctamente en la capa Silver")
-        else:
-            st.warning("API no disponible. Los cambios no se han guardado.")
+    # Botones de acción
+    col_save, col_continue = st.columns([1, 1])
+    
+    with col_save:
+        if st.button("Guardar cambios", type="primary", use_container_width=True, icon=":material/save:"):
+            applied_rules = get_applied_rules(selected_table)
+            operations = rules_to_operations(applied_rules)
+            payload = {"table_name": selected_table, "operations": operations}
+            _, success = post("silver", "apply", payload)
+            if success:
+                st.success("Cambios guardados correctamente en la capa Silver")
+            else:
+                st.warning("API no disponible. Los cambios no se han guardado.")
+    
+    with col_continue:
+        if st.button("Continuar a Gold", use_container_width=True, icon=":material/arrow_forward:"):
+            st.switch_page("pages/3_Gold.py")
+    
+    st.divider()
+    
+    # Mostrar tablas Silver existentes
+    st.subheader("Tablas Silver existentes")
+    
+    silver_tables, silver_mock = fetch("silver", "tables")
+    
+    if silver_mock and not tables_mock:
+        st.info("Modo de prueba: API Silver no disponible")
+    
+    if not silver_tables:
+        st.caption("No hay tablas Silver creadas aún")
+    else:
+        with st.container(height=350):
+            for table in silver_tables:
+                with st.container(border=True):
+                    col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                    with col1:
+                        st.write(f"**{table['name']}**")
+                    with col2:
+                        st.caption(f"{table['rows']:,} filas")
+                    with col3:
+                        if st.button("Ver", key=f"btn_ver_silver_{table['name']}", use_container_width=True):
+                            show_table_detail(table['name'], layer="silver")
+                    with col4:
+                        if st.button("Eliminar", key=f"btn_del_silver_{table['name']}", use_container_width=True, disabled=silver_mock, type="primary"):
+                            confirm_delete(table['name'], layer="silver")
             
 if __name__ == "__main__":
     show()
