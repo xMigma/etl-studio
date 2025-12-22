@@ -44,9 +44,8 @@ def join_gold_tables(request: GoldJoinRequest):
 
 @router_gold.post("/apply/", status_code=status.HTTP_200_OK)
 def apply_gold_join(request: GoldJoinRequest):
-    """Apply a join operation and save the result to gold database."""
+    """Apply a join operation and save the result in the gold layer."""
     _execute_join(request, preview=False)
-
 
 @router_gold.get("/tables/", response_model=list[GoldTableName], status_code=status.HTTP_200_OK)
 def get_table_names():
