@@ -14,10 +14,11 @@ def join_tables(
     left_key: str,
     right_key: str,
     join_type: str = "inner",
-    preview: bool = False
+    preview: bool = False,
+    output_table_name: Optional[str] = None
 ) -> pd.DataFrame:
     """Join two tables from specified sources."""
-    result_table_name = f"{left_table}_{right_table}_joined"
+    result_table_name = output_table_name or f"{left_table}_{right_table}_joined"
     
     if preview:
         joined_df = join_tables_db(left_table, right_table, left_source, 

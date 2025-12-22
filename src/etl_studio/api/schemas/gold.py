@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional
 
 class GoldTableName(BaseModel):
     name: str
@@ -19,5 +19,6 @@ class GoldJoinRequest(BaseModel):
     left_source: Literal["silver", "gold"]
     right_source: Literal["silver", "gold"]
     config: JoinConfig
+    output_table_name: Optional[str] = None
 
 

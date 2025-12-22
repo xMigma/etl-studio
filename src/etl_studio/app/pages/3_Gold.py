@@ -19,7 +19,7 @@ def execute_join(
     right_table_name: str,
     config: dict[str, str],
     save: bool = False,
-    output_table_name: str | None = None,
+    output_table_name: Optional[str] = None,
     left_source: str = "silver",
     right_source: str = "silver",
 ) -> pd.DataFrame | tuple[bool, str]:
@@ -31,6 +31,9 @@ def execute_join(
         "right_source": right_source,
         "config": config,
     }
+
+    if save and output_table_name:
+        payload["output_table_name"] = output_table_name
     
     endpoint = "apply" if save else "join"
     response, success = post("gold", endpoint, payload)

@@ -17,7 +17,8 @@ def _execute_join(request: GoldJoinRequest, preview: bool = False):
             left_key=request.config.left_key,
             right_key=request.config.right_key,
             join_type=request.config.join_type,
-            preview=preview
+            preview=preview,
+            output_table_name = request.output_table_name
         )
         
         return result_df
