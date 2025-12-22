@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 from sqlalchemy import text
 
-from etl_studio.postgres.postgres import get_table as get_table, get_table_names, delete_table, save_table, join_tables_sql, get_engine
+from etl_studio.postgres.postgres import get_table as get_table, get_table_names, delete_table, save_table, get_engine
 
 
 def get_table_db(table_name: str, schema: str, preview: bool = False) -> pd.DataFrame:
@@ -34,19 +34,23 @@ def join_tables_db(left_table: str, right_table: str, left_schema: str, right_sc
     
     if left_key == right_key:
         query = text(f"""
-            SELECT * 
-            FROM {left_schema}.{left_table}
-            {join_clause} {right_schema}.{right_table}
+            SELECT l.*, r.* 
+            FROM {left_schema}.{left_table} l
+            {join_clause} {right_schema}.{right_table} r
             USING ({left_key})
             {limit_clause}
         """)
     else:
+
         query = text(f"""
-            SELECT * 
-            FROM {left_schema}.{left_table} AS l
-            {join_clause} {right_schema}.{right_table} AS r
+            SELECT l.*, r.* 
+            FROM {left_schema}.{left_table} l
+            {join_clause} {right_schema}.{right_table} r
             ON l.{left_key} = r.{right_key}
             {limit_clause}
         """)
     
-    return pd.read_sql(query, engine)
+    result = pd.read_sql(query, engine)
+
+    return result
+

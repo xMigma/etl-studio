@@ -8,7 +8,7 @@ from etl_studio.etl.silver import dispatch_operations, get_table, delete_table, 
 router_silver = APIRouter(prefix="/silver", tags=["silver"])
 
 
-@router_silver.get("/rules/", status_code=status.HTTP_200_OK)
+@router_silver.get("/rules/")
 def get_available_rules():
     """Returns all available cleaning rules."""
     return {"rules": SILVER_OPERATIONS}
