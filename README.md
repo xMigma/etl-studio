@@ -7,6 +7,8 @@ Lightweight Streamlit skeleton for a collaborative data platform. This repo only
 contains scaffolding so each team member can focus on their layer (ETL, ML, or
 UX) without stepping on each other's toes.
 
+![ETL Studio Interface](docs/screenshot.png)
+
 ## Getting started
 
 ### Run with Docker Compose (Recommended)
