@@ -35,7 +35,7 @@ def assert_table_list_response(response, expected_tables: list[dict]):
 
 
 # Tests GET
-@patch("etl_studio.api.routes.bronze.get_bronze_table_names")
+@patch("etl_studio.api.routes.bronze.get_bronze_tables_info")
 def test_list_bronze_tables(mock_get_tables):
     expected_tables = [
         {"name": "customers", "rows": 100},
@@ -48,7 +48,7 @@ def test_list_bronze_tables(mock_get_tables):
     mock_get_tables.assert_called_once()
 
 
-@patch("etl_studio.api.routes.bronze.get_bronze_table_names")
+@patch("etl_studio.api.routes.bronze.get_bronze_tables_info")
 def test_list_bronze_tables_empty(mock_get_tables):
     mock_get_tables.return_value = []
     
@@ -94,7 +94,7 @@ def test_bronze_upload_internal_error(mock_load_csv):
     response = client.post("/bronze/upload/", files={"files": csv_file})
     assert response.status_code == 500
     
-@patch("etl_studio.api.routes.bronze.get_table_content")
+@patch("etl_studio.api.routes.bronze.get_table")
 def test_get_bronze_table_content(mock_get_content):
     sample_csv = SAMPLE_CSV_CONTENT.decode("utf-8")
     mock_get_content.return_value = sample_csv
@@ -103,7 +103,7 @@ def test_get_bronze_table_content(mock_get_content):
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/csv; charset=utf-8"
     assert response.text == sample_csv
-    mock_get_content.assert_called_once_with("customers", limit=None)
+    mock_get_content.assert_called_once_with("customers", preview=False)
     
 def test_get_bronze_table_content_not_found():
     response = client.get("/bronze/tables/nonexistent_table")

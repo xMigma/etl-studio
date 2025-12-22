@@ -19,14 +19,6 @@ def test_get_available_rules():
     assert isinstance(data["rules"], dict)
 
 
-def test_get_available_aggregations():
-    response = client.get("/silver/aggregations/")
-    assert response.status_code == 200
-    data = response.json()
-    assert "aggregations" in data
-    assert isinstance(data["aggregations"], list)
-
-
 @patch("etl_studio.api.routes.silver.dispatch_operations")
 def test_process_preview_silver(mock_dispatch):
     df = pd.read_csv(io.StringIO(SAMPLE_CSV_CONTENT))
