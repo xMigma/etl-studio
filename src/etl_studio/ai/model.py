@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import pickle
 from pathlib import Path
 from typing import Any, Optional
@@ -37,9 +38,30 @@ from sklearn.preprocessing import LabelEncoder
 from etl_studio.config import MLFLOW_TRACKING_URI, MLFLOW_EXPERIMENT_NAME
 
 
-# Configure MLflow
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
+def _should_init_mlflow() -> bool:
+    """Return True only when it is safe to contact the tracking server."""
+    if os.getenv("ETL_STUDIO_DISABLE_MLFLOW_INIT"):
+        return False
+    if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("CI"):
+        return False
+    return True
+
+
+def _init_mlflow() -> bool:
+    """Try to configure MLflow; return False on any failure without raising."""
+    if not _should_init_mlflow():
+        return False
+    try:
+        if MLFLOW_TRACKING_URI:
+            mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        if MLFLOW_EXPERIMENT_NAME:
+            mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
+        return True
+    except Exception:
+        return False
+
+
+_MLFLOW_READY = _init_mlflow()
 
 
 # Model configurations (same as before)
