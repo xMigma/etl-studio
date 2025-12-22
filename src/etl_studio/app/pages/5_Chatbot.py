@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from etl_studio.app import setup_page
-from etl_studio.ai import chatbot_sql
+from etl_studio.ai import chatbot_sql, chatbot
 
 setup_page("Chatbot · ETL Studio")
 
@@ -124,7 +124,7 @@ def show() -> None:
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Confirmar"):
-                resultados, _, error = chatbot_sql.ejecutar_force_sql(st.session_state.get("sql_pendiente"))
+                resultados, _, error = chatbot.ejecutar_force_sql(st.session_state.get("sql_pendiente"))
                 if error:
                     st.error(f"Error al ejecutar: {error}")
                 else:
