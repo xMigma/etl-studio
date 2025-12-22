@@ -138,25 +138,45 @@ def show() -> None:
     if "gold_dataframes" not in st.session_state:
         st.session_state.gold_dataframes = {}
     
-    tables, is_mock = fetch("silver", "tables")
+    # Cargar tablas de Silver y Gold
+    silver_tables, is_mock_silver = fetch("silver", "tables")
+    gold_tables_fetched, is_mock_gold = fetch("gold", "tables")
     
-    if is_mock:
+    if is_mock_silver or is_mock_gold:
         st.info("Modo de prueba: API no disponible")
     
-    if not tables:
-        st.warning("No hay tablas disponibles en Silver. Procesa primero las tablas en la capa Silver.")
+    # Combinar tablas de ambas capas
+    silver_tables = silver_tables or []
+    gold_tables_fetched = gold_tables_fetched or st.session_state.get("gold_tables", [])
+    
+    if not silver_tables and not gold_tables_fetched:
+        st.warning("No hay tablas disponibles. Procesa primero las tablas en la capa Silver.")
         if st.button("Ir a Silver", type="primary"):
             st.switch_page("pages/2_Silver.py")
         return
     
-    table_names = [t["name"] for t in tables]
+    # Crear mapeo de nombre de tabla a su fuente
+    table_source = {}
+    table_names = []
+    
+    for t in silver_tables:
+        table_names.append(t["name"])
+        table_source[t["name"]] = "silver"
+    
+    for t in gold_tables_fetched:
+        table_names.append(t["name"])
+        table_source[t["name"]] = "gold"
     
     # Cargar DataFrames de las tablas
     table_dfs = {}
     for name in table_names:
-        df, _ = fetch_table_csv("silver", name)
-        if df is not None:
-            table_dfs[name] = df
+        source = table_source[name]
+        if source == "gold" and name in st.session_state.gold_dataframes:
+            table_dfs[name] = st.session_state.gold_dataframes[name]
+        else:
+            df, _ = fetch_table_csv(source, name)
+            if df is not None:
+                table_dfs[name] = df
     
     st.subheader("Configurar Join")
     
@@ -185,7 +205,12 @@ def show() -> None:
         if left_df is not None and right_df is not None:
             try:
                 config = {"left_key": left_key, "right_key": right_key, "join_type": join_type}
-                result_df = execute_join(left_table, right_table, config, save=False)
+                left_source = table_source.get(left_table, "silver")
+                right_source = table_source.get(right_table, "silver")
+                result_df = execute_join(
+                    left_table, right_table, config, save=False,
+                    left_source=left_source, right_source=right_source
+                )
                 
                 col_info1, col_info2, col_info3 = st.columns(3)
                 with col_info1:
@@ -204,7 +229,8 @@ def show() -> None:
                 with col_save:
                     if st.button("Guardar tabla Gold", type="primary", use_container_width=True, icon=":material/save:"):
                         success, message = execute_join(
-                            left_table, right_table, config, save=True
+                            left_table, right_table, config, save=True,
+                            left_source=left_source, right_source=right_source
                         )
                         if success:
                             st.success(message)
@@ -228,14 +254,13 @@ def show() -> None:
     # Mostrar tablas Gold existentes
     st.subheader("Tablas Gold existentes")
     
-    gold_tables, _ = fetch("gold", "tables")
-    gold_tables = gold_tables or st.session_state.get("gold_tables", [])
+    gold_tables_display = gold_tables_fetched
     
-    if not gold_tables:
+    if not gold_tables_display:
         st.caption("No hay tablas Gold creadas aún")
     else:
         with st.container(height=200):
-            for table in gold_tables:
+            for table in gold_tables_display:
                 with st.container(border=True):
                     col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
                     with col1:
