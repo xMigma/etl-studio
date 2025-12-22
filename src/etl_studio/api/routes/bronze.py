@@ -51,15 +51,7 @@ def list_bronze_tables():
         )
     
 
-@router_bronze.get("/tables/{table_name}",
-    response_class=Response,
-    responses={
-        200: {
-            "content": {"text/csv": {}},
-            "description": "CSV file download or preview"
-        }
-    }
-)
+@router_bronze.get("/tables/{table_name}", status_code=status.HTTP_200_OK)
 def download_table_csv(table_name: str, preview: bool = False):
     """Download content of a specific bronze table as CSV file."""
     try:
@@ -81,7 +73,7 @@ def download_table_csv(table_name: str, preview: bool = False):
             detail=f"Error retrieving table content: {str(e)}"
         )
     
-@router_bronze.delete("/tables/{table_name}", status_code=status.HTTP_200_OK)
+@router_bronze.delete("/tables/{table_name}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_bronze_table(table_name: str):
     """Endpoint to delete a specific table from the bronze layer."""
     try:

@@ -8,13 +8,13 @@ from etl_studio.etl.silver import dispatch_operations, get_table, delete_table, 
 router_silver = APIRouter(prefix="/silver", tags=["silver"])
 
 
-@router_silver.get("/rules/")
+@router_silver.get("/rules/", status_code=status.HTTP_200_OK)
 def get_available_rules():
     """Returns all available cleaning rules."""
     return {"rules": SILVER_OPERATIONS}
 
 
-@router_silver.post("/preview/")
+@router_silver.post("/preview/", status_code=status.HTTP_200_OK)
 def process_preview_silver(request: SilverPreviewRequest):
     try:
         operations = [op.model_dump(exclude_none=True) for op in request.operations]
@@ -28,7 +28,7 @@ def process_preview_silver(request: SilverPreviewRequest):
         )
 
 
-@router_silver.post("/apply/")
+@router_silver.post("/apply/", status_code=status.HTTP_200_OK)
 def apply_operations_silver(request: SilverPreviewRequest):
     try:
         operations = [op.model_dump(exclude_none=True) for op in request.operations]
@@ -78,7 +78,7 @@ def get_table_content(table_name: str, preview: bool = False):
         )
 
 
-@router_silver.delete("/tables/{table_name}", status_code=status.HTTP_200_OK)
+@router_silver.delete("/tables/{table_name}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_silver_table(table_name: str):
     """Endpoint to delete a specific table from the silver layer."""
     try:
